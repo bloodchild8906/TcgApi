@@ -28,7 +28,6 @@
     "jsonwebtoken": "^9.0.0",
     "lucide-react": "^0.469.0",
     "mongoose": "^6.8.4",
-    "msnodesqlv8": "^5.1.8",
     "mssql": "^12.2.1",
     "mysql2": "^3.20.0",
     "next": "^15.3.1",
