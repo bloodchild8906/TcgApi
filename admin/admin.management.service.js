@@ -1,8 +1,11 @@
+const fs = require('fs');
+const path = require('path');
 const Activity = require('../activity/activity.model');
 const CardModel = require('../cards/cards.model');
 const config = require('../config');
 const EventBus = require('../realtime/event-bus');
 const GameStore = require('../game/game.store');
+const { createId } = require('../game/game.helpers');
 const HttpTool = require('../tools/http.tool');
 const MatchModel = require('../matches/matches.model');
 const OpsStore = require('../ops/ops.store');
@@ -14,17 +17,62 @@ const UserTool = require('../users/users.tool');
 const activityCollection = GameStore.collection('activity');
 const bansCollection = GameStore.collection('bans');
 const cardsCollection = GameStore.collection('cards');
+const cardBacksCollection = GameStore.collection('card_backs');
+const cardFramesCollection = GameStore.collection('card_frames');
 const cardTypesCollection = GameStore.collection('card_types');
 const gameFlowsCollection = GameStore.collection('game_flows');
 const keywordsCollection = GameStore.collection('keywords');
 const marketCollection = GameStore.collection('market');
+const matchmakingQueueCollection = GameStore.collection('matchmaking_queue');
+const matchmakingSettingsCollection = GameStore.collection('matchmaking_settings');
 const matchEventsCollection = GameStore.collection('match_events');
 const matchesCollection = GameStore.collection('matches');
 const packsCollection = GameStore.collection('packs');
+const playerMessagesCollection = GameStore.collection('player_messages');
+const rewardsCollection = GameStore.collection('rewards');
 const setsCollection = GameStore.collection('sets');
 const usersCollection = GameStore.collection('users');
+const adminAssetUploadRoot = path.resolve(__dirname, '../public/uploads/admin-assets');
+const imageExtensionByMimeType = {
+  'image/avif': '.avif',
+  'image/gif': '.gif',
+  'image/jpeg': '.jpg',
+  'image/jpg': '.jpg',
+  'image/png': '.png',
+  'image/svg+xml': '.svg',
+  'image/webp': '.webp',
+};
 
 const exactCaseInsensitive = (value) => new RegExp(`^${String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+
+const sanitizePathSegment = (value, fallback = 'asset') => {
+  const cleaned = String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return cleaned || fallback;
+};
+
+const decodeImageDataUrl = (value) => {
+  const match = String(value || '').match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i);
+  if (!match) {
+    throw HttpTool.createError(400, 'data_url must be a base64-encoded image data URL.');
+  }
+
+  const mimeType = String(match[1] || '').toLowerCase();
+  const buffer = Buffer.from(match[2], 'base64');
+  if (!buffer.length) {
+    throw HttpTool.createError(400, 'Uploaded image is empty.');
+  }
+
+  return { buffer, mimeType };
+};
+
+const resolveImageExtension = (mimeType, fileName = '') => {
+  const fromMime = imageExtensionByMimeType[mimeType] || '';
+  const fromName = path.extname(String(fileName || '')).toLowerCase();
+  return fromMime || (Object.values(imageExtensionByMimeType).includes(fromName) ? fromName : '.png');
+};
 
 const parseBoundedInteger = (value, field, { min = null, max = null } = {}) => {
   const parsed = Number.parseInt(value, 10);
@@ -121,6 +169,127 @@ const saveKeyedDocument = async (collection, keyField, key, data) => {
   });
 };
 
+const deleteTidDocument = async (collection, tid) => {
+  const entry = await collection.get(tid);
+  if (!entry) {
+    throw HttpTool.createError(404, `Document not found: ${tid}`);
+  }
+
+  await collection.remove(tid, entry.$meta);
+  return entry;
+};
+
+const normalizeStringArray = (value) => (Array.isArray(value) ? value : [])
+  .map((entry) => String(entry || '').trim())
+  .filter(Boolean);
+
+const normalizeNumber = (value, fallback, { min = null, max = null } = {}) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return fallback;
+  }
+
+  if (min !== null && numeric < min) {
+    return min;
+  }
+
+  if (max !== null && numeric > max) {
+    return max;
+  }
+
+  return numeric;
+};
+
+const normalizeInteger = (value, fallback, options = {}) => Math.round(normalizeNumber(value, fallback, options));
+
+const sanitizeJsonValue = (value) => {
+  if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => sanitizeJsonValue(entry));
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.entries(value).reduce((output, [key, entry]) => {
+      output[String(key)] = sanitizeJsonValue(entry);
+      return output;
+    }, {});
+  }
+
+  return String(value ?? '');
+};
+
+const normalizeStudioZone = (zone = {}) => {
+  const normalizedZIndex = normalizeInteger(zone.z_index ?? zone.metadata?.z_index, 10, { min: -999, max: 999 });
+  const metadata = sanitizeJsonValue(zone.metadata || {});
+  return {
+    id: String(zone.id || createId()),
+    kind: String(zone.kind || zone.prefab || 'text'),
+    label: String(zone.label || zone.id || 'Zone'),
+    binding: String(zone.binding || zone.field || ''),
+    text: String(zone.text || ''),
+    x: normalizeNumber(zone.x, 20, { min: 0, max: 2000 }),
+    y: normalizeNumber(zone.y, 20, { min: 0, max: 2000 }),
+    width: normalizeNumber(zone.width, 120, { min: 20, max: 2000 }),
+    height: normalizeNumber(zone.height, 48, { min: 20, max: 2000 }),
+    align: String(zone.align || 'left'),
+    font_size: normalizeNumber(zone.font_size, 16, { min: 8, max: 120 }),
+    font_weight: String(zone.font_weight || '600'),
+    color: String(zone.color || '#edf6f2'),
+    background: String(zone.background || ''),
+    radius: normalizeNumber(zone.radius, 12, { min: 0, max: 400 }),
+    opacity: normalizeNumber(zone.opacity, 1, { min: 0, max: 1 }),
+    z_index: normalizedZIndex,
+    metadata: {
+      ...metadata,
+      z_index: normalizedZIndex,
+    },
+  };
+};
+
+const normalizeStudioLayout = (layout = {}) => ({
+  width: normalizeNumber(layout.width, 320, { min: 120, max: 2000 }),
+  height: normalizeNumber(layout.height, 460, { min: 120, max: 2000 }),
+  background: String(layout.background || ''),
+  accent: String(layout.accent || ''),
+  border_color: String(layout.border_color || ''),
+  art_url: String(layout.art_url || ''),
+  frame_z_index: normalizeInteger(layout.frame_z_index, 40, { min: -999, max: 999 }),
+  artwork_mode: String(layout.artwork_mode || 'cover'),
+  zones: (Array.isArray(layout.zones) ? layout.zones : []).map((zone) => normalizeStudioZone(zone)),
+});
+
+const normalizeStudioFields = (fields = []) => (Array.isArray(fields) ? fields : []).map((field, index) => ({
+  key: String(field.key || `field_${index + 1}`).trim(),
+  label: String(field.label || field.key || `Field ${index + 1}`).trim(),
+  type: String(field.type || 'text').trim(),
+  required: Boolean(field.required),
+  placeholder: String(field.placeholder || ''),
+  help: String(field.help || ''),
+  options: normalizeStringArray(field.options),
+  default_value: sanitizeJsonValue(field.default_value ?? ''),
+})).filter((field) => field.key);
+
+const normalizeStudioTemplatePayload = (data = {}, kind) => {
+  const tid = requireTid(data);
+  return {
+    tid,
+    name: String(data.name || tid),
+    description: String(data.description || ''),
+    kind,
+    tags: normalizeStringArray(data.tags),
+    default_frame_tid: String(data.default_frame_tid || ''),
+    default_back_tid: String(data.default_back_tid || ''),
+    preview_values: sanitizeJsonValue(data.preview_values || {}),
+    layout: normalizeStudioLayout(data.layout || {}),
+    fields: normalizeStudioFields(data.fields),
+    metadata: sanitizeJsonValue(data.metadata || {}),
+    updatedAt: new Date(),
+  };
+};
+
 const sortHistoryEntries = (entries) => entries
   .slice()
   .sort((left, right) => {
@@ -129,21 +298,265 @@ const sortHistoryEntries = (entries) => entries
     return rightTime - leftTime;
   });
 
+const sumQuantities = (entries = []) => entries.reduce((total, entry) => {
+  const quantity = Number(entry?.quantity);
+  return total + (Number.isFinite(quantity) ? quantity : 1);
+}, 0);
+
+const uniqueEntryCount = (entries = [], field = 'tid') => {
+  const values = new Set();
+  entries.forEach((entry) => {
+    const value = String(entry?.[field] || '').trim();
+    if (value) {
+      values.add(value);
+    }
+  });
+  return values.size;
+};
+
+const toPercent = (owned, total) => {
+  if (!Number.isFinite(total) || total <= 0) {
+    return 0;
+  }
+
+  return Math.min(100, Math.round((owned / total) * 1000) / 10);
+};
+
+const buildCollectionDensity = ({
+  totalCards = 0,
+  totalDeckTemplates = 0,
+  totalPacks = 0,
+  totalRewards = 0,
+  availableRewardIds = [],
+  user = {},
+}) => {
+  const uniqueOwnedCards = uniqueEntryCount(user.cards || []);
+  const totalOwnedCards = sumQuantities(user.cards || []);
+  const uniqueOwnedPacks = uniqueEntryCount(user.packs || []);
+  const totalOwnedPacks = sumQuantities(user.packs || []);
+  const ownedDecks = Array.isArray(user.decks) ? user.decks.length : 0;
+  const rewardIdSet = new Set((Array.isArray(availableRewardIds) ? availableRewardIds : [])
+    .map((rewardId) => String(rewardId || '').trim())
+    .filter(Boolean));
+  const claimedRewards = rewardIdSet.size > 0
+    ? uniqueEntryCount((user.rewards || [])
+      .filter((rewardId) => rewardIdSet.has(String(rewardId || '').trim()))
+      .map((rewardId) => ({ tid: rewardId })))
+    : uniqueEntryCount((user.rewards || []).map((rewardId) => ({ tid: rewardId })));
+
+  const categories = [
+    {
+      key: 'cards',
+      label: 'Cards',
+      owned_total: totalOwnedCards,
+      owned_unique: uniqueOwnedCards,
+      percent: toPercent(uniqueOwnedCards, totalCards),
+      total_available: totalCards,
+    },
+    {
+      key: 'packs',
+      label: 'Packs',
+      owned_total: totalOwnedPacks,
+      owned_unique: uniqueOwnedPacks,
+      percent: toPercent(uniqueOwnedPacks, totalPacks),
+      total_available: totalPacks,
+    },
+    {
+      key: 'decks',
+      label: 'Decks',
+      owned_total: ownedDecks,
+      owned_unique: ownedDecks,
+      percent: toPercent(ownedDecks, totalDeckTemplates),
+      total_available: totalDeckTemplates,
+    },
+    {
+      key: 'rewards',
+      label: 'Rewards',
+      owned_total: claimedRewards,
+      owned_unique: claimedRewards,
+      percent: toPercent(claimedRewards, totalRewards),
+      total_available: totalRewards,
+    },
+  ];
+
+  const overallOwned = categories.reduce(
+    (total, category) => total + Math.min(category.owned_unique, category.total_available || category.owned_unique),
+    0
+  );
+  const overallAvailable = categories.reduce((total, category) => total + category.total_available, 0);
+
+  return {
+    categories,
+    inventory: {
+      avatars: Array.isArray(user.avatars) ? user.avatars.length : 0,
+      card_backs: Array.isArray(user.card_backs) ? user.card_backs.length : 0,
+      coins: Number(user.coins || 0),
+      decks: ownedDecks,
+      friends: Array.isArray(user.friends) ? user.friends.length : 0,
+      packs: totalOwnedPacks,
+      packs_unique: uniqueOwnedPacks,
+      cards: totalOwnedCards,
+      cards_unique: uniqueOwnedCards,
+      rewards: claimedRewards,
+    },
+    overall_percent: toPercent(overallOwned, overallAvailable),
+    overall_unique_owned: overallOwned,
+    overall_total_available: overallAvailable,
+  };
+};
+
+const summarizeDecks = (user = {}) => (Array.isArray(user.decks) ? user.decks : []).map((deck) => {
+  const cards = Array.isArray(deck.cards) ? deck.cards : [];
+  return {
+    casual_losses: Number(deck.casual_losses || 0),
+    casual_matches: Number(deck.casual_matches || 0),
+    casual_mmr: Number(deck.casual_mmr || user.casual_mmr || user.elo || config.start_elo),
+    casual_win_rate: toPercent(Number(deck.casual_wins || 0), Number(deck.casual_matches || 0)),
+    casual_wins: Number(deck.casual_wins || 0),
+    card_count: sumQuantities(cards),
+    hero: deck.hero || {},
+    preview_cards: cards.slice(0, 8).map((card) => ({
+      quantity: Number(card.quantity || 1),
+      tid: String(card.tid || ''),
+      variant: String(card.variant || ''),
+    })),
+    ranked_losses: Number(deck.ranked_losses || 0),
+    ranked_matches: Number(deck.ranked_matches || 0),
+    ranked_mmr: Number(deck.ranked_mmr || user.elo || config.start_elo),
+    ranked_win_rate: toPercent(Number(deck.ranked_wins || 0), Number(deck.ranked_matches || 0)),
+    ranked_wins: Number(deck.ranked_wins || 0),
+    tid: String(deck.tid || ''),
+    title: String(deck.title || ''),
+    unique_cards: uniqueEntryCount(cards),
+  };
+});
+
+const resolveParticipantSide = (match = {}, username = '') => {
+  const normalizedUsername = String(username || '').trim().toLowerCase();
+  const teams = match.teams || {};
+  if (Array.isArray(teams.solo) && teams.solo.some((entry) => String(entry.username || '').trim().toLowerCase() === normalizedUsername)) {
+    return 'solo';
+  }
+  if (Array.isArray(teams.opponent) && teams.opponent.some((entry) => String(entry.username || '').trim().toLowerCase() === normalizedUsername)) {
+    return 'opponent';
+  }
+  const snapshot = (Array.isArray(match.udata) ? match.udata : []).find((entry) => String(entry.username || '').trim().toLowerCase() === normalizedUsername);
+  const side = String(snapshot?.team_key || snapshot?.requested_side || '').trim().toLowerCase();
+  return side === 'solo' || side === 'opponent' ? side : '';
+};
+
+const summarizePerformance = (matches = [], username = '') => {
+  const normalizedUsername = String(username || '').trim().toLowerCase();
+  const completedMatches = matches.filter((match) => match.completed);
+  const wins = completedMatches.filter((match) => {
+    const winnerSide = String(match.winner_side || '').trim().toLowerCase();
+    if (winnerSide) {
+      return resolveParticipantSide(match, username) === winnerSide;
+    }
+    return String(match.winner || '').trim().toLowerCase() === normalizedUsername;
+  }).length;
+  const losses = completedMatches.filter((match) => {
+    const winnerSide = String(match.winner_side || '').trim().toLowerCase();
+    if (winnerSide) {
+      const side = resolveParticipantSide(match, username);
+      return side && side !== winnerSide;
+    }
+    const winner = String(match.winner || '').trim().toLowerCase();
+    return winner && winner !== normalizedUsername;
+  }).length;
+  const draws = completedMatches.filter((match) => !String(match.winner || '').trim()).length;
+  const totalCompleted = completedMatches.length;
+
+  return {
+    completed_matches: totalCompleted,
+    draws,
+    losses,
+    total_matches: matches.length,
+    win_loss_ratio: losses > 0 ? Math.round((wins / losses) * 100) / 100 : (wins > 0 ? wins : 0),
+    win_rate: toPercent(wins, totalCompleted || 0),
+    wins,
+  };
+};
+
+const summarizeMatchForPlayer = (match, username) => {
+  const normalizedUsername = String(username || '').trim().toLowerCase();
+  const players = Array.isArray(match.players) ? match.players : [];
+  const side = resolveParticipantSide(match, username);
+  const opponent = side
+    ? players.filter((player) => resolveParticipantSide(match, player) !== side).join(', ')
+    : (players.find((player) => String(player || '').trim().toLowerCase() !== normalizedUsername) || '');
+  const winner = String(match.winner || '').trim();
+  const normalizedWinner = winner.toLowerCase();
+  const winnerSide = String(match.winner_side || '').trim().toLowerCase();
+
+  let result = 'pending';
+  if (match.completed) {
+    if (!winner && !winnerSide) {
+      result = 'draw';
+    } else if (winnerSide) {
+      result = side === winnerSide ? 'win' : 'loss';
+    } else if (normalizedWinner === normalizedUsername) {
+      result = 'win';
+    } else {
+      result = 'loss';
+    }
+  }
+
+  return {
+    completed: Boolean(match.completed),
+    end: match.end,
+    mode: match.mode || (match.ranked ? 'Ranked' : 'Casual'),
+    opponent,
+    ranked: Boolean(match.ranked),
+    result,
+    start: match.start,
+    tid: match.tid,
+    winner,
+  };
+};
+
+const summarizePlayerMessage = (entry) => ({
+  channel: String(entry.channel || 'system'),
+  content: String(entry.content || ''),
+  direction: String(entry.direction || 'system'),
+  peer: String(entry.peer || ''),
+  timestamp: entry.timestamp,
+  userId: String(entry.userId || ''),
+  username: String(entry.username || ''),
+});
+
+const ensurePlayerUser = (user) => {
+  if (!user) {
+    throw HttpTool.createError(404, 'Player not found');
+  }
+
+  if (Number(user.permission_level || 0) >= config.permissions.SERVER) {
+    throw HttpTool.createError(400, `${user.username} is a staff/admin account, not a player`);
+  }
+
+  return user;
+};
+
 exports.resetDatabase = async (actor = 'system') => {
   const collections = [
     activityCollection,
     bansCollection,
     cardsCollection,
+    cardBacksCollection,
+    cardFramesCollection,
     cardTypesCollection,
     gameFlowsCollection,
     keywordsCollection,
     marketCollection,
+    matchmakingQueueCollection,
+    matchmakingSettingsCollection,
     matchesCollection,
     matchEventsCollection,
     packsCollection,
+    playerMessagesCollection,
     setsCollection,
     GameStore.collection('decks'),
-    GameStore.collection('rewards'),
+    rewardsCollection,
     GameStore.collection('users'),
     GameStore.collection('variants'),
   ];
@@ -427,10 +840,7 @@ exports.getPlayerFriends = async (userId) => {
 };
 
 exports.getPlayerDeck = async (userId, deckTid) => {
-  const user = await UserModel.getById(userId);
-  if (!user) {
-    throw HttpTool.createError(404, 'User not found');
-  }
+  const user = ensurePlayerUser(await UserModel.getById(userId));
 
   const deck = UserTool.getDeck(user, deckTid);
   if (!deck || !deck.tid) {
@@ -451,7 +861,74 @@ exports.getPlayerDeck = async (userId, deckTid) => {
 
   return {
     ...deck,
+    casual_win_rate: toPercent(Number(deck.casual_wins || 0), Number(deck.casual_matches || 0)),
+    ranked_win_rate: toPercent(Number(deck.ranked_wins || 0), Number(deck.ranked_matches || 0)),
     cards: enhancedCards,
+  };
+};
+
+exports.getPlayerProfile = async (userId) => {
+  const user = ensurePlayerUser(await UserModel.getById(userId));
+  const username = String(user.username || '').trim();
+
+  const [
+    totalCards,
+    totalDeckTemplates,
+    totalPacks,
+    rewardDocuments,
+    matches,
+    activity,
+    banEntry,
+    messageHistory,
+    friends,
+  ] = await Promise.all([
+    cardsCollection.count({}),
+    GameStore.collection('decks').count({}),
+    packsCollection.count({}),
+    GameStore.collection('rewards').find({}, { limit: 10000 }),
+    matchesCollection.find({ players: username }, {
+      sort: { end: -1, start: -1 },
+      limit: 20,
+    }),
+    Activity.Get({ username }),
+    bansCollection.get(user.id),
+    playerMessagesCollection.find({ userId: user.id }, {
+      sort: { timestamp: -1 },
+      limit: 50,
+    }),
+    exports.getPlayerFriends(userId),
+  ]);
+
+  const availableRewardIds = rewardDocuments
+    .map((reward) => String(reward.tid || '').trim())
+    .filter(Boolean);
+  const normalizedMatches = matches.map((match) => normalizeDoc(match));
+  const performance = summarizePerformance(normalizedMatches, username);
+  const activityHistory = sortHistoryEntries([
+    ...activity.map((entry) => normalizeDoc(entry)),
+    ...(banEntry ? [{
+      ...normalizeDoc(banEntry),
+      timestamp: banEntry.createdAt,
+      type: 'ban_record',
+    }] : []),
+  ]);
+
+  return {
+    activity_history: activityHistory.slice(0, 50),
+    collection_density: buildCollectionDensity({
+      totalCards,
+      totalDeckTemplates,
+      totalPacks,
+      totalRewards: availableRewardIds.length,
+      availableRewardIds,
+      user,
+    }),
+    decks: summarizeDecks(user),
+    friends,
+    message_history: messageHistory.map((entry) => summarizePlayerMessage(normalizeDoc(entry))),
+    performance,
+    player: user.deleteSecrets(),
+    recent_matches: normalizedMatches.map((match) => summarizeMatchForPlayer(match, username)),
   };
 };
 
@@ -518,6 +995,13 @@ exports.saveKeyword = async (data, actor = 'system') => {
   return normalizeDoc(result);
 };
 
+exports.deleteKeyword = async (tid, actor = 'system') => {
+  const result = await deleteTidDocument(keywordsCollection, tid);
+  await Activity.LogActivity('admin_keyword_delete', actor, { tid });
+  EventBus.publish('content.keyword.deleted', { tid }, { broadcast: true, admin: true });
+  return normalizeDoc(result);
+};
+
 exports.listSets = async () => (await setsCollection.find({}, { sort: { tid: 1 } })).map((entry) => normalizeDoc(entry));
 
 exports.saveSet = async (data, actor = 'system') => {
@@ -535,6 +1019,13 @@ exports.saveSet = async (data, actor = 'system') => {
   return normalizeDoc(result);
 };
 
+exports.deleteSet = async (tid, actor = 'system') => {
+  const result = await deleteTidDocument(setsCollection, tid);
+  await Activity.LogActivity('admin_set_delete', actor, { tid });
+  EventBus.publish('content.set.deleted', { tid }, { broadcast: true, admin: true });
+  return normalizeDoc(result);
+};
+
 exports.listPacks = async () => (await packsCollection.find({}, { sort: { tid: 1 } })).map((entry) => normalizeDoc(entry));
 
 exports.savePack = async (data, actor = 'system') => {
@@ -544,13 +1035,93 @@ exports.savePack = async (data, actor = 'system') => {
   return normalizeDoc(result);
 };
 
+exports.deletePack = async (tid, actor = 'system') => {
+  const result = await deleteTidDocument(packsCollection, tid);
+  await Activity.LogActivity('admin_pack_delete', actor, { tid });
+  EventBus.publish('content.pack.deleted', { tid }, { broadcast: true, admin: true });
+  return normalizeDoc(result);
+};
+
 exports.listCardTypes = async () => (await cardTypesCollection.find({}, { sort: { tid: 1 } })).map((entry) => normalizeDoc(entry));
 
 exports.saveCardType = async (data, actor = 'system') => {
-  const result = await saveTidDocument(cardTypesCollection, data || {});
+  const payload = normalizeStudioTemplatePayload(data || {}, 'card_type');
+  const result = await saveTidDocument(cardTypesCollection, payload);
   await Activity.LogActivity('admin_card_type_save', actor, { tid: result.tid });
   EventBus.publish('content.card_type.updated', normalizeDoc(result), { broadcast: true, admin: true });
   return normalizeDoc(result);
+};
+
+exports.deleteCardType = async (tid, actor = 'system') => {
+  const result = await deleteTidDocument(cardTypesCollection, tid);
+  await Activity.LogActivity('admin_card_type_delete', actor, { tid });
+  EventBus.publish('content.card_type.deleted', { tid }, { broadcast: true, admin: true });
+  return normalizeDoc(result);
+};
+
+exports.listCardFrames = async () => (await cardFramesCollection.find({}, { sort: { tid: 1 } })).map((entry) => normalizeDoc(entry));
+
+exports.saveCardFrame = async (data, actor = 'system') => {
+  const payload = normalizeStudioTemplatePayload(data || {}, 'card_frame');
+  const result = await saveTidDocument(cardFramesCollection, payload);
+  await Activity.LogActivity('admin_card_frame_save', actor, { tid: result.tid });
+  EventBus.publish('content.card_frame.updated', normalizeDoc(result), { broadcast: true, admin: true });
+  return normalizeDoc(result);
+};
+
+exports.deleteCardFrame = async (tid, actor = 'system') => {
+  const result = await deleteTidDocument(cardFramesCollection, tid);
+  await Activity.LogActivity('admin_card_frame_delete', actor, { tid });
+  EventBus.publish('content.card_frame.deleted', { tid }, { broadcast: true, admin: true });
+  return normalizeDoc(result);
+};
+
+exports.listCardBacks = async () => (await cardBacksCollection.find({}, { sort: { tid: 1 } })).map((entry) => normalizeDoc(entry));
+
+exports.saveCardBack = async (data, actor = 'system') => {
+  const payload = normalizeStudioTemplatePayload(data || {}, 'card_back');
+  const result = await saveTidDocument(cardBacksCollection, payload);
+  await Activity.LogActivity('admin_card_back_save', actor, { tid: result.tid });
+  EventBus.publish('content.card_back.updated', normalizeDoc(result), { broadcast: true, admin: true });
+  return normalizeDoc(result);
+};
+
+exports.deleteCardBack = async (tid, actor = 'system') => {
+  const result = await deleteTidDocument(cardBacksCollection, tid);
+  await Activity.LogActivity('admin_card_back_delete', actor, { tid });
+  EventBus.publish('content.card_back.deleted', { tid }, { broadcast: true, admin: true });
+  return normalizeDoc(result);
+};
+
+exports.saveAdminImageAsset = async (data, actor = 'system') => {
+  const { buffer, mimeType } = decodeImageDataUrl(data?.data_url);
+  const category = sanitizePathSegment(data?.category, 'misc');
+  const requestedName = String(data?.file_name || data?.label || 'image');
+  const fileStem = sanitizePathSegment(path.parse(requestedName).name, 'image');
+  const extension = resolveImageExtension(mimeType, requestedName);
+  const fileName = `${fileStem}_${Date.now().toString(36)}_${createId().slice(-6)}${extension}`;
+  const targetDir = path.join(adminAssetUploadRoot, category);
+  const targetPath = path.join(targetDir, fileName);
+  const urlPath = `/uploads/admin-assets/${encodeURIComponent(category)}/${encodeURIComponent(fileName)}`;
+
+  fs.mkdirSync(targetDir, { recursive: true });
+  fs.writeFileSync(targetPath, buffer);
+
+  await Activity.LogActivity('admin_asset_upload', actor, {
+    bytes: buffer.length,
+    category,
+    file_name: fileName,
+    mime_type: mimeType,
+  });
+
+  return {
+    bytes: buffer.length,
+    category,
+    file_name: fileName,
+    mime_type: mimeType,
+    path: urlPath,
+    url: urlPath,
+  };
 };
 
 exports.listGameFlows = async () => (await gameFlowsCollection.find({}, { sort: { tid: 1 } })).map((entry) => normalizeDoc(entry));
@@ -645,9 +1216,38 @@ exports.getCard = async (tid) => {
 exports.saveCard = async (cardData, actor = 'system') => {
   const tid = requireTid(cardData || {});
   const card = await CardModel.get(tid);
+  const typeId = String(cardData?.type || card?.type || '');
+  const cardType = typeId ? await cardTypesCollection.findOne({ tid: typeId }) : null;
+  const explicitBackTid = cardData?.card_back_tid !== undefined
+    ? String(cardData?.card_back_tid || '')
+    : String(card?.card_back_tid || '');
   const sanitizedData = {
     ...cardData,
-    backs: Array.isArray(cardData?.backs) ? cardData.backs : [],
+    tid,
+    title: String(cardData?.title || cardData?.name || ''),
+    name: String(cardData?.name || cardData?.title || ''),
+    type: typeId,
+    team: String(cardData?.team || ''),
+    rarity: String(cardData?.rarity || ''),
+    set: String(cardData?.set || ''),
+    artist: String(cardData?.artist || ''),
+    description: String(cardData?.description || ''),
+    art_url: String(cardData?.art_url || ''),
+    frame_tid: String(cardType?.default_frame_tid || ''),
+    card_back_tid: explicitBackTid || String(cardType?.default_back_tid || ''),
+    matchmaking_modifier: normalizeInteger(
+      cardData?.matchmaking_modifier !== undefined ? cardData.matchmaking_modifier : card?.matchmaking_modifier,
+      0,
+      { min: -9999, max: 9999 }
+    ),
+    packs: normalizeStringArray(cardData?.packs),
+    tags: normalizeStringArray(cardData?.tags),
+    traits: normalizeStringArray(cardData?.traits),
+    mana: normalizeInteger(cardData?.mana, 0, { min: 0 }),
+    attack: normalizeInteger(cardData?.attack, 0, { min: 0 }),
+    hp: normalizeInteger(cardData?.hp, 0, { min: 0 }),
+    cost: normalizeInteger(cardData?.cost, 0, { min: 0 }),
+    backs: Array.isArray(cardData?.backs) ? cardData.backs.map((back) => sanitizeJsonValue(back)) : [],
     frames: Array.isArray(cardData?.frames) ? cardData.frames.map((frame) => ({
       art: String(frame.art || ''),
       type: String(frame.type || 'default'),
@@ -661,7 +1261,8 @@ exports.saveCard = async (cardData, actor = 'system') => {
         y: Number(zone.y || 0),
       })) : [],
     })) : [],
-    tid,
+    studio_fields: sanitizeJsonValue(cardData?.studio_fields || {}),
+    studio_notes: String(cardData?.studio_notes || ''),
   };
 
   const result = card
@@ -780,4 +1381,9 @@ exports.giveReward = async (userId, reward = {}, actor = 'system') => {
   EventBus.publish('player.rewarded', { reward, userId: user.id }, { user_ids: [user.id], admin: true });
   EventBus.publish('player.updated', { changes: reward, userId: user.id }, { user_ids: [user.id], admin: true });
   return updatedUser.deleteSecrets();
+};
+
+exports._private = {
+  buildCollectionDensity,
+  summarizePerformance,
 };

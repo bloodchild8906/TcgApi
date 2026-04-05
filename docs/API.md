@@ -23,6 +23,7 @@ This document summarizes the implemented routes in the current codebase.
 | `GET` | `/online` | Public | Online user summary based on recent activity |
 | `GET` | `/setup` | Public | Serves the first-run installer UI while datastore or bootstrap-user setup is incomplete; otherwise redirects to `/admin` |
 | `GET` | `/admin` | Public | Serves the admin dashboard UI shell when setup is complete; otherwise redirects to `/setup` |
+| `GET` | `/admin/players/:userId` | Public | Serves the dedicated player profile UI shell when setup is complete; otherwise redirects to `/setup` |
 
 ## Installer
 
@@ -154,6 +155,7 @@ This document summarizes the implemented routes in the current codebase.
 | --- | --- | --- | --- |
 | `POST` | `/matches/add` | SERVER | Create match |
 | `POST` | `/matches/complete` | SERVER | Complete match and apply results |
+| `POST` | `/matches/:tid/phase` | SERVER | Advance a match to the next saved turn-phase node and publish websocket phase events |
 | `GET` | `/matches` | SERVER | List all matches |
 | `GET` | `/matches/:tid` | USER | Read one match |
 
@@ -182,6 +184,7 @@ This document summarizes the implemented routes in the current codebase.
 | `GET` | `/admin/api/summary` | ADMIN | Aggregated monitoring payload used by the UI |
 | `POST` | `/admin/api/reset-database` | Admin with `admin.system.reset` | Clears gameplay and ops-store data, then re-seeds built-in RBAC roles |
 | `GET` | `/admin/api/players` | Admin with `admin.users.manage` | Lists non-staff players; supports `?limit=` and `?page=` |
+| `GET` | `/admin/api/players/:userId/profile` | Admin with `admin.users.manage` | Player analytics payload with collection density, decks, recent matches, message history, friends, and activity history |
 | `GET` | `/admin/api/staff` | Admin with `admin.roles.read` | Lists staff and admin accounts; supports `?limit=` and `?page=` |
 | `POST` | `/admin/api/players/:userId` | Admin with `admin.users.manage` | Update player state fields such as `coins`, `xp`, `elo`, `validation_level`, `avatar`, and `cardback` |
 | `POST` | `/admin/api/players/:userId/ban` | Admin with `admin.users.manage` | Ban a player with `type`, `reason`, optional `notes`, and `linked_chats` |
@@ -204,10 +207,19 @@ This document summarizes the implemented routes in the current codebase.
 | `POST` | `/admin/api/suite/keywords` | Admin with `admin.content.manage` | Create or update a keyword definition |
 | `GET` | `/admin/api/suite/sets` | Admin with `admin.content.manage` | Lists set definitions |
 | `POST` | `/admin/api/suite/sets` | Admin with `admin.content.manage` | Create or update a set definition |
+| `DELETE` | `/admin/api/suite/sets/:tid` | Admin with `admin.content.manage` | Delete one set definition |
 | `GET` | `/admin/api/suite/packs` | Admin with `admin.content.manage` | Lists pack definitions |
 | `POST` | `/admin/api/suite/packs` | Admin with `admin.content.manage` | Create or update a pack definition |
+| `DELETE` | `/admin/api/suite/packs/:tid` | Admin with `admin.content.manage` | Delete one pack definition |
 | `GET` | `/admin/api/suite/types` | Admin with `admin.content.manage` | Lists card-type definitions |
 | `POST` | `/admin/api/suite/types` | Admin with `admin.content.manage` | Create or update a card-type definition |
+| `DELETE` | `/admin/api/suite/types/:tid` | Admin with `admin.content.manage` | Delete one card-type definition |
+| `GET` | `/admin/api/studio/frames` | Admin with `admin.content.manage` | Lists frame templates used by Card Studio |
+| `POST` | `/admin/api/studio/frames` | Admin with `admin.content.manage` | Create or update one frame template |
+| `DELETE` | `/admin/api/studio/frames/:tid` | Admin with `admin.content.manage` | Delete one frame template |
+| `GET` | `/admin/api/studio/backs` | Admin with `admin.content.manage` | Lists card-back templates used by Card Studio |
+| `POST` | `/admin/api/studio/backs` | Admin with `admin.content.manage` | Create or update one card-back template |
+| `DELETE` | `/admin/api/studio/backs/:tid` | Admin with `admin.content.manage` | Delete one card-back template |
 | `GET` | `/admin/api/flows` | Admin with `admin.game_flows.manage` | Lists game-flow definitions |
 | `GET` | `/admin/api/flows/:tid` | Admin with `admin.game_flows.manage` | Get one game-flow definition |
 | `POST` | `/admin/api/flows` | Admin with `admin.game_flows.manage` | Create or update a game-flow graph |
@@ -228,6 +240,12 @@ RBAC applies to admin users and scopes named permissions on top of the legacy `A
 Notes:
 
 - `/admin` and `/admin/api/summary` require `admin.dashboard.read` for admin users.
+- `/admin/api/players` is player-only; staff and admin users are intentionally excluded from that roster.
+- The Operators view in `/admin` is backed by `/admin/api/staff`, `/admin/roles`, and `/admin/users/:userId/access`.
+- Card Studio inside `/admin` is template-only and uses `/admin/api/suite/types`, `/admin/api/studio/frames`, and `/admin/api/studio/backs`.
+- In Card Studio, zone names are the canonical property names for card data; the separate manual field schema is no longer edited directly.
+- The visual Catalog view inside `/admin` uses `/admin/api/cards` plus the template endpoints to preview cards, create a single card, or bulk import a JSON list against a selected type template, with zone inputs ordered by their template positions.
+- Saved turn-phase flows can be attached to matches through `flow_tid`, and runtime phase changes publish websocket events using the generic `game.phase.changed` event plus any custom `event_name` configured on the phase node.
 - There is no seeded default admin username/password.
 - Bootstrap admin access can be created in `/setup`, or by registering the first user if the installer bootstrap step is skipped.
 - `/admin` redirects to `/setup` until the datastore is configured and at least one user exists.
@@ -239,6 +257,15 @@ Notes:
 - Database reset requires `admin.system.reset`.
 - `OPS_DB_DRIVER` also accepts `myql` as an alias for `mysql`, and `sql` / `sqlserver` as aliases for `mssql`.
 - `GAME_DB_DRIVER` accepts the same aliases as `OPS_DB_DRIVER`.
+
+## Dev Seed
+
+- Command: `npm run seed:dev-demo`
+- Demo player:
+  - Username: `DevPlayer`
+  - Email: `dev.player@example.test`
+  - Password: `DevPlayer123!`
+- The seed also creates `DevRival` as supporting player data for messages, matches, and friends.
 
 ## Websocket
 

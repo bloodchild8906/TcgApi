@@ -153,7 +153,7 @@ const defaults = {
 
   https_key: '/etc/letsencrypt/live/yoursite.com/privkey.pem',
   https_ca: '/etc/letsencrypt/live/yoursite.com/chain.pem',
-  https_cert: '/etc/letsencrypt/live/yoursite.com/cert.pem',
+  https_cert: '/etc/letsencrypt/live/yoursite.cpenmom/cert.pem',
   allow_http: true,
   allow_https: false,
 

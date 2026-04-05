@@ -14,6 +14,7 @@ REST API for TCG Engine user accounts, card content, packs, decks, rewards, matc
 - Added websocket transport for realtime notifications.
 - Added an RCON TCP server for authenticated operator commands.
 - Added RBAC roles for admin users.
+- Added a Card Studio inside the admin UI for designing reusable type, frame, and back templates, plus a template-driven visual catalog for cards.
 - Moved gameplay collections onto a generic store abstraction so cards, users, matches, market data, and other game documents are no longer tied to Mongo schemas.
 - Added pluggable operational-store support for MongoDB, MySQL, PostgreSQL, and SQL Server.
 - Added pluggable gameplay-store support for MongoDB, MySQL, PostgreSQL, and SQL Server using a generic document collection layer.
@@ -219,10 +220,20 @@ Notes:
 - The dashboard includes:
   - Monitoring cards for uptime, transport state, store health, and collection counts
   - Alerting and recent activity/match/market views
-  - User management for permission changes, player-state edits, reward grants, RBAC roles, bans, kicks, and history
-  - Match and market-offer moderation actions for scoped admins
-  - Content management for cards, packs, decks, variants, rewards, keywords, sets, and card types
-  - Game-flow editing behind the dedicated `admin.game_flows.manage` scope
+  - A player roster that only lists actual players; staff and admin users are separated into the Operators view
+  - Dedicated player profile pages at `/admin/players/:userId` with collection density, owned decks, message history, activity history, friends, win/loss analytics, and direct operator actions such as add coins, grant packs/cards, ban, unban, and kick
+  - Operator management for permission changes, RBAC role assignment, and access inspection
+  - Match and market-offer moderation actions surfaced through overview/admin pages for scoped admins
+  - Card Studio for:
+    - opening on a large central canvas with collapsible toolbars
+    - drawing zones by dragging rectangles, then resizing and typing them in the inspector
+    - switching between tabbed type, frame, and back template editors
+    - assigning frame templates to types, previewing the selected frame directly on the type canvas, then binding zones to typed card properties with optional zone background art
+    - uploading a local image directly into frame templates, or pasting a background image URL
+    - deriving card-property names directly from zone names instead of maintaining a separate field schema
+    - setting background images on frames, types, backs, and individual zones
+  - A visual catalog browser with layered filters for set, rarity, type, team/power type, pack, mana, attack, HP, and cost, plus single-card creation and JSON list import using type templates
+  - Turn Phase Designer behind the dedicated `admin.game_flows.manage` scope, with graph editing for Start Of Turn, phase nodes, End Of Turn, actions, response windows, and state checks
   - Database reset behind the `admin.system.reset` scope
 
 The UI is static and lives in:
@@ -230,6 +241,19 @@ The UI is static and lives in:
 - [`dashboard.html`](/E:/TcgEngineAPI/public/dashboard.html)
 - [`dashboard.css`](/E:/TcgEngineAPI/public/dashboard.css)
 - [`dashboard.js`](/E:/TcgEngineAPI/public/dashboard.js)
+- [`card-studio.js`](/E:/TcgEngineAPI/public/card-studio.js)
+- [`player.html`](/E:/TcgEngineAPI/public/player.html)
+- [`player.js`](/E:/TcgEngineAPI/public/player.js)
+
+## Dev Demo Player
+
+- Seed a non-admin demo player with `npm run seed:dev-demo`
+- Demo player credentials:
+  - Username: `DevPlayer`
+  - Email: `dev.player@example.test`
+  - Password: `DevPlayer123!`
+- Support seed data also creates `DevRival` as a normal player so the profile page has friends, messages, and match history to render.
+- The seed is idempotent for the demo records and is intended for local development only.
 
 ## Authentication
 

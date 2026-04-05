@@ -17,6 +17,7 @@ const PacksRouter = require('./packs/packs.routes');
 const DecksRouter = require('./decks/decks.routes');
 const VariantRouter = require('./variants/variants.routes');
 const MatchesRouter = require('./matches/matches.routes');
+const MatchmakingRouter = require('./matchmaking/matchmaking.routes');
 const RewardsRouter = require('./rewards/rewards.routes');
 const MarketRouter = require('./market/market.routes');
 const ActivityRouter = require('./activity/activity.routes');
@@ -54,11 +55,13 @@ const createSetupGatePayload = (runtime) => ({
   setup_reason: runtime?.setupReason || (config.requires_first_run_setup ? 'database_not_configured' : ''),
   setup_url: '/setup',
 });
+const REQUEST_BODY_LIMIT = '500mb';
 
 const createApp = (runtime = {}) => {
   const app = express();
   const publicDir = path.join(__dirname, 'public');
   const dashboardFile = path.join(publicDir, 'dashboard.html');
+  const playerFile = path.join(publicDir, 'player.html');
   const setupFile = path.join(publicDir, 'setup.html');
   const setupCssFile = path.join(publicDir, 'setup.css');
   const setupJsFile = path.join(publicDir, 'setup.js');
@@ -97,7 +100,8 @@ const createApp = (runtime = {}) => {
     return next();
   });
 
-  app.use(express.json({ limit: '100kb' }));
+  app.use(express.json({ limit: REQUEST_BODY_LIMIT }));
+  app.use(express.urlencoded({ extended: true, limit: REQUEST_BODY_LIMIT }));
 
   app.use((req, res, next) => {
     if (config.request_log_enabled) {
@@ -226,6 +230,7 @@ const createApp = (runtime = {}) => {
   DecksRouter.route(app);
   VariantRouter.route(app);
   MatchesRouter.route(app);
+  MatchmakingRouter.route(app);
   RewardsRouter.route(app);
   MarketRouter.route(app);
   TradesRouter.route(app);
@@ -241,6 +246,18 @@ const createApp = (runtime = {}) => {
       }
 
       res.sendFile(dashboardFile);
+      return undefined;
+    }));
+  }
+
+  if (fs.existsSync(playerFile)) {
+    app.get('/admin/players/:userId', ...HttpTool.wrap(async (req, res) => {
+      const setupState = await getSetupState(runtime);
+      if (setupState.setup_required) {
+        return res.redirect('/setup');
+      }
+
+      res.sendFile(playerFile);
       return undefined;
     }));
   }

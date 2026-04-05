@@ -21,6 +21,12 @@ exports.route = function (app) {
     AdminController.ListPlayers,
   ]));
 
+  app.get('/admin/api/players/:userId/profile', ...HttpTool.wrap([
+    AuthTool.isValidJWT,
+    AuthTool.isAdminPermission('admin.users.manage'),
+    AdminController.GetPlayerProfile,
+  ]));
+
   app.get('/admin/api/staff', ...HttpTool.wrap([
     AuthTool.isValidJWT,
     AuthTool.isAdminPermission('admin.roles.read'),
@@ -104,6 +110,11 @@ exports.route = function (app) {
     AuthTool.isAdminPermission('admin.content.manage'),
     AdminController.SaveKeyword,
   ]));
+  app.delete('/admin/api/suite/keywords/:tid', ...HttpTool.wrap([
+    AuthTool.isValidJWT,
+    AuthTool.isAdminPermission('admin.content.manage'),
+    AdminController.DeleteKeyword,
+  ]));
 
   app.get('/admin/api/suite/sets', ...HttpTool.wrap([
     AuthTool.isValidJWT,
@@ -114,6 +125,11 @@ exports.route = function (app) {
     AuthTool.isValidJWT,
     AuthTool.isAdminPermission('admin.content.manage'),
     AdminController.SaveSet,
+  ]));
+  app.delete('/admin/api/suite/sets/:tid', ...HttpTool.wrap([
+    AuthTool.isValidJWT,
+    AuthTool.isAdminPermission('admin.content.manage'),
+    AdminController.DeleteSet,
   ]));
 
   app.get('/admin/api/suite/packs', ...HttpTool.wrap([
@@ -126,6 +142,11 @@ exports.route = function (app) {
     AuthTool.isAdminPermission('admin.content.manage'),
     AdminController.SavePack,
   ]));
+  app.delete('/admin/api/suite/packs/:tid', ...HttpTool.wrap([
+    AuthTool.isValidJWT,
+    AuthTool.isAdminPermission('admin.content.manage'),
+    AdminController.DeletePack,
+  ]));
 
   app.get('/admin/api/suite/types', ...HttpTool.wrap([
     AuthTool.isValidJWT,
@@ -136,6 +157,49 @@ exports.route = function (app) {
     AuthTool.isValidJWT,
     AuthTool.isAdminPermission('admin.content.manage'),
     AdminController.SaveCardType,
+  ]));
+  app.delete('/admin/api/suite/types/:tid', ...HttpTool.wrap([
+    AuthTool.isValidJWT,
+    AuthTool.isAdminPermission('admin.content.manage'),
+    AdminController.DeleteCardType,
+  ]));
+
+  app.get('/admin/api/studio/frames', ...HttpTool.wrap([
+    AuthTool.isValidJWT,
+    AuthTool.isAdminPermission('admin.content.manage'),
+    AdminController.ListCardFrames,
+  ]));
+  app.post('/admin/api/studio/frames', ...HttpTool.wrap([
+    AuthTool.isValidJWT,
+    AuthTool.isAdminPermission('admin.content.manage'),
+    AdminController.SaveCardFrame,
+  ]));
+  app.delete('/admin/api/studio/frames/:tid', ...HttpTool.wrap([
+    AuthTool.isValidJWT,
+    AuthTool.isAdminPermission('admin.content.manage'),
+    AdminController.DeleteCardFrame,
+  ]));
+
+  app.get('/admin/api/studio/backs', ...HttpTool.wrap([
+    AuthTool.isValidJWT,
+    AuthTool.isAdminPermission('admin.content.manage'),
+    AdminController.ListCardBacks,
+  ]));
+  app.post('/admin/api/studio/backs', ...HttpTool.wrap([
+    AuthTool.isValidJWT,
+    AuthTool.isAdminPermission('admin.content.manage'),
+    AdminController.SaveCardBack,
+  ]));
+  app.delete('/admin/api/studio/backs/:tid', ...HttpTool.wrap([
+    AuthTool.isValidJWT,
+    AuthTool.isAdminPermission('admin.content.manage'),
+    AdminController.DeleteCardBack,
+  ]));
+
+  app.post('/admin/api/assets/images', ...HttpTool.wrap([
+    AuthTool.isValidJWT,
+    AuthTool.isAdminPermission('admin.content.manage'),
+    AdminController.UploadAdminImage,
   ]));
 
   // Game Flow Designer Routes

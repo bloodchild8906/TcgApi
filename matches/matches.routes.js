@@ -20,6 +20,11 @@ exports.route = function (app) {
         AuthTool.isPermissionLevel(SERVER),
         MatchesController.completeMatch
     ]));
+    app.post('/matches/:tid/phase', app.post_limiter, ...HttpTool.wrap([
+        AuthTool.isValidJWT,
+        AuthTool.isPermissionLevel(SERVER),
+        MatchesController.advancePhase
+    ]));
 
     //-- Getter
     app.get('/matches', ...HttpTool.wrap([

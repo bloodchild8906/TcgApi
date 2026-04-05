@@ -13,6 +13,10 @@ exports.ListPlayers = async (req, res) => {
     return res.status(200).send(await ManagementService.listPlayers(req.query || {}));
 };
 
+exports.GetPlayerProfile = async (req, res) => {
+    return res.status(200).send(await ManagementService.getPlayerProfile(req.params.userId));
+};
+
 exports.ListStaff = async (req, res) => {
     return res.status(200).send(await ManagementService.listStaff(req.query || {}));
 };
@@ -99,12 +103,18 @@ exports.ListKeywords = async (req, res) => {
 exports.SaveKeyword = async (req, res) => {
     return res.status(200).send(await ManagementService.saveKeyword(req.body || {}, req.jwt.username));
 };
+exports.DeleteKeyword = async (req, res) => {
+    return res.status(200).send(await ManagementService.deleteKeyword(req.params.tid, req.jwt.username));
+};
 
 exports.ListSets = async (req, res) => {
     return res.status(200).send({ sets: await ManagementService.listSets() });
 };
 exports.SaveSet = async (req, res) => {
     return res.status(200).send(await ManagementService.saveSet(req.body || {}, req.jwt.username));
+};
+exports.DeleteSet = async (req, res) => {
+    return res.status(200).send(await ManagementService.deleteSet(req.params.tid, req.jwt.username));
 };
 
 exports.ListPacks = async (req, res) => {
@@ -113,12 +123,42 @@ exports.ListPacks = async (req, res) => {
 exports.SavePack = async (req, res) => {
     return res.status(200).send(await ManagementService.savePack(req.body || {}, req.jwt.username));
 };
+exports.DeletePack = async (req, res) => {
+    return res.status(200).send(await ManagementService.deletePack(req.params.tid, req.jwt.username));
+};
 
 exports.ListCardTypes = async (req, res) => {
     return res.status(200).send({ types: await ManagementService.listCardTypes() });
 };
 exports.SaveCardType = async (req, res) => {
     return res.status(200).send(await ManagementService.saveCardType(req.body || {}, req.jwt.username));
+};
+exports.DeleteCardType = async (req, res) => {
+    return res.status(200).send(await ManagementService.deleteCardType(req.params.tid, req.jwt.username));
+};
+
+exports.ListCardFrames = async (req, res) => {
+    return res.status(200).send({ frames: await ManagementService.listCardFrames() });
+};
+exports.SaveCardFrame = async (req, res) => {
+    return res.status(200).send(await ManagementService.saveCardFrame(req.body || {}, req.jwt.username));
+};
+exports.DeleteCardFrame = async (req, res) => {
+    return res.status(200).send(await ManagementService.deleteCardFrame(req.params.tid, req.jwt.username));
+};
+
+exports.ListCardBacks = async (req, res) => {
+    return res.status(200).send({ backs: await ManagementService.listCardBacks() });
+};
+exports.SaveCardBack = async (req, res) => {
+    return res.status(200).send(await ManagementService.saveCardBack(req.body || {}, req.jwt.username));
+};
+exports.DeleteCardBack = async (req, res) => {
+    return res.status(200).send(await ManagementService.deleteCardBack(req.params.tid, req.jwt.username));
+};
+
+exports.UploadAdminImage = async (req, res) => {
+    return res.status(200).send(await ManagementService.saveAdminImageAsset(req.body || {}, req.jwt.username));
 };
 
 // Game Flow Endpoints

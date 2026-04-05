@@ -1,4 +1,6 @@
 const MatchModel = require('./matches.model');
+const MatchmakingService = require('../matchmaking/matchmaking.service');
+const MatchFlowService = require('./match-flow.service');
 const MatchTool = require('./matches.tool');
 const UserModel = require('../users/users.model');
 const DateTool = require('../tools/date.tool');
@@ -36,6 +38,7 @@ exports.addMatch = async(req, res) => {
     match.completed = false;
     match.ranked = ranked;
     match.mode = mode;
+    match.flow_tid = typeof req.body.flow_tid === 'string' ? req.body.flow_tid.trim() : '';
     match.start = Date.now();
     match.end = Date.now();
     match.udata = [];
@@ -46,7 +49,11 @@ exports.addMatch = async(req, res) => {
     if(!curr_match)
         return res.status(500).send({error:"Unable to create match"});
 
-    res.status(200).send(match);
+    if (match.flow_tid) {
+        curr_match = await MatchFlowService.startMatchFlow(curr_match, req.jwt.username || 'system');
+    }
+
+    res.status(200).send(curr_match);
 
 };
 
@@ -54,11 +61,12 @@ exports.completeMatch = async(req, res) => {
 
     const matchId = req.body.tid;
     const winner = req.body.winner;
+    const winnerSideInput = typeof req.body.winner_side === 'string' ? req.body.winner_side.trim().toLowerCase() : '';
 
-    if (!matchId || !winner)
+    if (!matchId || (!winner && !winnerSideInput))
         return res.status(400).send({ error: "Invalid parameters" });
 	
-	if(typeof matchId != "string" || typeof winner != "string")
+	if(typeof matchId != "string" || (winner !== undefined && typeof winner != "string"))
         return res.status(400).send({error: "Invalid parameters" });
 
     const match = await MatchModel.get(matchId);
@@ -68,18 +76,34 @@ exports.completeMatch = async(req, res) => {
     if(match.completed)
         return res.status(400).send({error: "Match already completed"});
 
-    const player0 = await UserModel.getByUsername(match.players[0]);
-    const player1 = await UserModel.getByUsername(match.players[1]);
-    if(!player0 || !player1)
-        return res.status(404).send({error:"Can't find players"});
+    const resolveWinnerSide = () => {
+        if (winnerSideInput === 'solo' || winnerSideInput === 'opponent') {
+            return winnerSideInput;
+        }
+
+        if (!winner) {
+            return '';
+        }
+
+        const participant = (Array.isArray(match.udata) ? match.udata : []).find((entry) => entry.username === winner);
+        const teamKey = String(participant?.team_key || participant?.requested_side || '').trim().toLowerCase();
+        return teamKey === 'solo' || teamKey === 'opponent' ? teamKey : '';
+    };
+
+    const winnerSide = resolveWinnerSide();
 
     match.end = Date.now();
-    match.winner = winner;
+    match.winner = winner || '';
+    match.winner_side = winnerSide;
     match.completed = true;
     
     //Add Rewards
-    if(match.ranked)
+    if(match.ranked && Array.isArray(match.players) && match.players.length === 2 && !match.matchmaking)
     {
+        const player0 = await UserModel.getByUsername(match.players[0]);
+        const player1 = await UserModel.getByUsername(match.players[1]);
+        if(!player0 || !player1)
+            return res.status(404).send({error:"Can't find players"});
         match.udata[0].reward = await MatchTool.GainMatchReward(player0, player1, winner);
         match.udata[1].reward = await MatchTool.GainMatchReward(player1, player0, winner);
         match.markModified('udata');
@@ -88,8 +112,33 @@ exports.completeMatch = async(req, res) => {
     //Save match
     const uMatch = await match.save();
 
+    let finalMatch = uMatch;
+
+    if (uMatch.matchmaking || winnerSide) {
+        finalMatch = await MatchmakingService.applyMatchOutcome(uMatch, {
+            actor: req.jwt.username || 'system',
+            winnerSide,
+            winnerUsername: winner,
+        });
+    }
+
+    if (finalMatch.flow_tid) {
+        finalMatch = await MatchFlowService.completeMatchFlow(finalMatch, req.jwt.username || 'system');
+    }
+
     //Return
-    res.status(200).send(uMatch);
+    res.status(200).send(finalMatch);
+};
+
+exports.advancePhase = async (req, res) => {
+    const matchId = req.params.tid;
+    const targetNodeId = req.body?.to;
+
+    if (!matchId || typeof matchId !== 'string' || !targetNodeId || typeof targetNodeId !== 'string')
+        return res.status(400).send({ error: "Invalid parameters" });
+
+    const result = await MatchFlowService.advanceMatchFlow(matchId, targetNodeId, req.jwt.username || 'system');
+    return res.status(200).send(result);
 };
 
 exports.getAll = async(req, res) => {

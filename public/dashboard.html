@@ -4,7 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TCG Engine | Admin Suite</title>
-  <meta name="description" content="Advanced TCG Engine Administration & Card Creator">
+  <meta name="description" content="Advanced TCG engine operations, catalog browsing, template studio, and turn phase design">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/themes/dark.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.1/dist/tabler-icons.min.css">
   <link rel="stylesheet" href="/dashboard.css">
 </head>
 <body>
@@ -19,17 +21,16 @@
       <div class="brand">
         <p class="brand-kicker">TCG Engine</p>
         <h1>Admin Suite</h1>
-        <p class="brand-copy">Integrated TCG Operations & Content Studio.</p>
+        <p class="brand-copy">Operator console, card studio, turn phases, and catalog oversight.</p>
       </div>
 
       <nav class="rail-nav" aria-label="Dashboard sections">
         <button class="rail-link is-active" type="button" data-view-button="overview">Overview</button>
-        <button class="rail-link" type="button" data-view-button="players">Players</button>
-        <button class="rail-link" type="button" data-view-button="staff">Staff</button>
-        <button class="rail-link" type="button" data-view-button="card-studio">Card Studio</button>
-        <button class="rail-link" type="button" data-view-button="flow-designer">Flow Designer</button>
+        <button class="rail-link" type="button" data-view-button="player-center">Player Center</button>
+        <button class="rail-link" type="button" data-view-button="operators">Operators</button>
+        <button class="rail-link" type="button" data-view-button="turn-phase-designer">Turn Phase Designer</button>
         <button class="rail-link" type="button" data-view-button="catalog">Catalog</button>
-        <button class="rail-link" type="button" data-view-button="operations">Operations</button>
+        <button class="rail-link" type="button" data-view-button="news-events">News &amp; Events</button>
       </nav>
 
       <section class="session-card panel">
@@ -38,7 +39,7 @@
           <span id="sessionState" class="status-pill">Signed out</span>
         </div>
         <div id="sessionDetails" class="session-details">
-          <p>No active admin session.</p>
+          <p>No active operator session.</p>
         </div>
         <div class="session-actions">
           <button id="refreshAllButton" class="ghost-button" type="button" disabled>Refresh Data</button>
@@ -47,8 +48,9 @@
       </section>
 
       <section class="panel rail-note">
-        <span class="eyebrow">Console</span>
-        <p>RCON Status: <span id="rconStatusLabel">Disabled</span></p>
+        <span class="eyebrow">Realtime</span>
+        <p>RCON: <span id="rconStatusLabel">Unknown</span></p>
+        <p>Websocket: <span id="wsStatusLabel">Unknown</span></p>
       </section>
     </aside>
 
@@ -56,7 +58,7 @@
       <header class="masthead">
         <div>
           <p class="eyebrow">Management Portal</p>
-          <h2 id="viewTitle">Service Dashboard</h2>
+          <h2 id="viewTitle">Service Overview</h2>
         </div>
         <div class="masthead-meta">
           <span id="systemVersion" class="meta-badge">Version unknown</span>
@@ -68,52 +70,53 @@
         <div class="panel-heading">
           <div>
             <span class="eyebrow">Identity Verification</span>
-            <h3>Open an admin session</h3>
+            <h3>Open an operator session</h3>
           </div>
         </div>
 
         <form id="loginForm" class="auth-form">
-          <label class="field">
-            <span>Login mode</span>
-            <select id="loginMode" name="mode">
-              <option value="username">Username</option>
-              <option value="email">Email</option>
-            </select>
-          </label>
+          <div class="action-grid">
+            <label class="field">
+              <span>Login mode</span>
+              <select id="loginMode" name="mode">
+                <option value="username">Username</option>
+                <option value="email">Email</option>
+              </select>
+            </label>
 
-          <label class="field">
-            <span id="identityLabel">Username</span>
-            <input id="loginIdentity" name="identity" type="text" autocomplete="username" required>
-          </label>
+            <label class="field">
+              <span id="identityLabel">Username</span>
+              <input id="loginIdentity" name="identity" type="text" autocomplete="username" required>
+            </label>
 
-          <label class="field">
-            <span>Password</span>
-            <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
-          </label>
+            <label class="field">
+              <span>Password</span>
+              <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
+            </label>
+          </div>
 
           <div class="auth-actions">
             <button id="loginButton" class="primary-button" type="submit">Sign In</button>
           </div>
         </form>
-        <p id="authMessage" class="helper-text">Use an account with admin permissions.</p>
+
+        <p id="authMessage" class="helper-text">Use an account with the required admin scopes for the views you need.</p>
       </section>
 
       <div id="dashboardApp" class="dashboard-app is-hidden">
         <section id="view-overview" class="view-section is-active" data-view="overview">
-          <div class="metrics-grid" id="metricsGrid"></div>
-          <div class="overview-grid">
-            <article class="panel">
-              <div class="panel-heading"><h3>System Health</h3></div>
-              <div id="healthGrid" class="health-grid"></div>
+          <div id="metricsGrid" class="metrics-grid"></div>
+
+          <div class="overview-stack">
+            <article class="panel hero-spotlight">
+              <div class="hero-spotlight__copy">
+                <span class="eyebrow">Live platform state</span>
+                <h3 class="hero-spotlight__title">Gameplay, transport, and operator health in one place.</h3>
+                <p class="section-copy">This overview keeps audit, matchmaking, transport, and catalog pressure visible without sending you into a separate operations page.</p>
+              </div>
+              <div id="overviewHighlights" class="hero-spotlight__grid"></div>
             </article>
-            <article class="panel">
-              <div class="panel-heading"><h3>Collection Density</h3></div>
-              <div id="collectionBars" class="collection-bars"></div>
-            </article>
-            <article class="panel">
-              <div class="panel-heading"><h3>Alerts</h3></div>
-              <div id="alertList" class="stack-list"></div>
-            </article>
+
             <article class="panel">
               <div class="panel-heading"><h3>Online Now</h3></div>
               <div id="onlineUsersList" class="stack-list"></div>
@@ -122,14 +125,27 @@
 
           <div class="overview-grid">
             <article class="panel">
+              <div class="panel-heading"><h3>System Health</h3></div>
+              <div id="healthGrid" class="health-grid"></div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-heading"><h3>Alerts</h3></div>
+              <div id="alertList" class="alert-list"></div>
+            </article>
+          </div>
+
+          <div class="overview-grid">
+            <article class="panel">
               <div class="panel-heading"><h3>Recent Activity</h3></div>
-              <div class="table-wrap">
+              <div class="table-wrap table-wrap-tall">
                 <table class="data-table">
                   <thead><tr><th>Event</th><th>Actor</th><th>Time</th><th>Details</th></tr></thead>
                   <tbody id="overviewActivityBody"></tbody>
                 </table>
               </div>
             </article>
+
             <article class="panel">
               <div class="panel-heading"><h3>Recent Offers</h3></div>
               <div class="table-wrap">
@@ -141,7 +157,7 @@
             </article>
           </div>
 
-          <div class="overview-grid">
+          <div class="overview-grid--triple">
             <article class="panel">
               <div class="panel-heading"><h3>Recent Trades</h3></div>
               <div class="table-wrap">
@@ -151,6 +167,17 @@
                 </table>
               </div>
             </article>
+
+            <article class="panel">
+              <div class="panel-heading"><h3>Recent Matches</h3></div>
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead><tr><th>Match</th><th>Players</th><th>Winner</th><th>Mode</th></tr></thead>
+                  <tbody id="recentMatchesBody"></tbody>
+                </table>
+              </div>
+            </article>
+
             <article class="panel">
               <div class="panel-heading"><h3>Newest Users</h3></div>
               <div id="newUsersList" class="stack-list"></div>
@@ -158,231 +185,541 @@
           </div>
         </section>
 
-        <section id="view-players" class="view-section" data-view="players">
-          <div class="split-grid">
+        <section id="view-player-center" class="view-section" data-view="player-center">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Player Center</p>
+                <h3>Matchmaking, player ops, and competitive intelligence.</h3>
+                <p class="helper-text">Control queues, manage player accounts, and monitor tournament + ranking pipelines.</p>
+              </div>
+            </div>
+            <div class="tab-strip player-center-tab-strip">
+              <button class="tab-button is-active" type="button" data-player-center-tab="matchmaking">Matchmaking</button>
+              <button class="tab-button" type="button" data-player-center-tab="players">Players</button>
+              <button class="tab-button" type="button" data-player-center-tab="tournaments">Tournament Manager</button>
+              <button class="tab-button" type="button" data-player-center-tab="rankings">Rankings</button>
+              <button class="tab-button" type="button" data-player-center-tab="card-stats">Card Stats</button>
+            </div>
+          </article>
+
+          <div class="player-center-panels">
+            <section class="player-center-panel is-active" data-player-center-panel="matchmaking">
+              <div class="overview-grid overview-grid--wide">
+                <article class="panel">
+                  <div class="panel-heading">
+                    <div>
+                      <h3>Matchmaking Control</h3>
+                      <p class="helper-text">Configure ranked and casual queue rules, 1vX balancing, and deck influence without restarting the API.</p>
+                    </div>
+                    <div class="content-actions">
+                      <button id="matchmakingReloadButton" class="ghost-button" type="button">Reload</button>
+                      <button id="matchmakingSaveButton" class="primary-button" type="button">Save Settings</button>
+                    </div>
+                  </div>
+
+                  <div class="matchmaking-settings-grid">
+                    <article class="field-row">
+                      <strong>Ranked</strong>
+                      <div class="field-row__grid">
+                        <label class="field"><span>Enabled</span><select id="matchmakingRankedEnabled"><option value="true">Enabled</option><option value="false">Disabled</option></select></label>
+                        <label class="field"><span>Opponent Team Size</span><select id="matchmakingRankedTeamSize"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></label>
+                        <label class="field"><span>Deck Ramp Matches</span><input id="matchmakingRankedDeckRamp" type="number" min="1"></label>
+                        <label class="field"><span>Max Deck Weight</span><input id="matchmakingRankedDeckWeight" type="number" min="0" max="1" step="0.01"></label>
+                        <label class="field"><span>Solo Bonus MMR</span><input id="matchmakingRankedSoloBonus" type="number" step="1"></label>
+                        <label class="field"><span>Queue Wait Seconds</span><input id="matchmakingRankedQueueWait" type="number" min="5"></label>
+                        <label class="field"><span>Search Window Start</span><input id="matchmakingRankedWindowStart" type="number" min="0"></label>
+                        <label class="field"><span>Expand Step</span><input id="matchmakingRankedWindowStep" type="number" min="0"></label>
+                        <label class="field"><span>Expand Seconds</span><input id="matchmakingRankedWindowSeconds" type="number" min="1"></label>
+                      </div>
+                    </article>
+
+                    <article class="field-row">
+                      <strong>Casual</strong>
+                      <div class="field-row__grid">
+                        <label class="field"><span>Enabled</span><select id="matchmakingCasualEnabled"><option value="true">Enabled</option><option value="false">Disabled</option></select></label>
+                        <label class="field"><span>Opponent Team Size</span><select id="matchmakingCasualTeamSize"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></label>
+                        <label class="field"><span>Deck Ramp Matches</span><input id="matchmakingCasualDeckRamp" type="number" min="1"></label>
+                        <label class="field"><span>Max Deck Weight</span><input id="matchmakingCasualDeckWeight" type="number" min="0" max="1" step="0.01"></label>
+                        <label class="field"><span>Solo Bonus MMR</span><input id="matchmakingCasualSoloBonus" type="number" step="1"></label>
+                        <label class="field"><span>Queue Wait Seconds</span><input id="matchmakingCasualQueueWait" type="number" min="5"></label>
+                        <label class="field"><span>Search Window Start</span><input id="matchmakingCasualWindowStart" type="number" min="0"></label>
+                        <label class="field"><span>Expand Step</span><input id="matchmakingCasualWindowStep" type="number" min="0"></label>
+                        <label class="field"><span>Expand Seconds</span><input id="matchmakingCasualWindowSeconds" type="number" min="1"></label>
+                      </div>
+                    </article>
+
+                    <article class="field-row">
+                      <strong>Shared</strong>
+                      <div class="field-row__grid">
+                        <label class="field"><span>Mirror Matchups</span><select id="matchmakingMirrorToggle"><option value="true">Allowed</option><option value="false">Blocked</option></select></label>
+                        <label class="field"><span>Default Flow ID</span><input id="matchmakingDefaultFlowTid" type="text" placeholder="core_turn_flow"></label>
+                        <label class="field"><span>Admin WS Queue Events</span><select id="matchmakingNotifyAdmin"><option value="true">Enabled</option><option value="false">Disabled</option></select></label>
+                      </div>
+                    </article>
+                  </div>
+
+                  <p id="matchmakingStatus" class="status-text"></p>
+                </article>
+
+                <article class="panel">
+                  <div class="panel-heading">
+                    <div>
+                      <h3>Live Queue</h3>
+                      <p class="helper-text">Solo tickets are matched against grouped opponent tickets using player and deck MMR blends.</p>
+                    </div>
+                  </div>
+                  <div id="matchmakingQueueMeta" class="badge-row"></div>
+                  <div class="table-wrap table-wrap-tall">
+                    <table class="data-table">
+                      <thead><tr><th>Queued</th><th>User</th><th>Mode</th><th>Side</th><th>Deck</th><th>MMR</th><th>Window</th></tr></thead>
+                      <tbody id="matchmakingQueueBody"></tbody>
+                    </table>
+                  </div>
+                </article>
+              </div>
+            </section>
+
+            <section class="player-center-panel" data-player-center-panel="players">
+              <article class="panel">
+                <div class="panel-heading">
+                  <div>
+                    <h3>Players</h3>
+                    <p class="helper-text">Player accounts only. Operators and admins are managed separately.</p>
+                  </div>
+                  <div class="content-actions">
+                    <input id="playerSearchInput" type="search" placeholder="Search username or email">
+                    <button id="reloadPlayersButton" class="ghost-button" type="button">Reload</button>
+                  </div>
+                </div>
+
+                <div class="table-wrap">
+                  <table class="data-table player-list-table">
+                    <thead><tr><th>Player</th><th>Email</th><th>Cards</th><th>Decks</th><th>Win / Loss</th><th>Last Seen</th><th>Open</th></tr></thead>
+                    <tbody id="playersTableBody"></tbody>
+                  </table>
+                </div>
+              </article>
+            </section>
+
+            <section class="player-center-panel" data-player-center-panel="tournaments">
+              <div class="overview-grid overview-grid--wide">
+                <article class="panel">
+                  <div class="panel-heading">
+                    <div>
+                      <h3>Tournament Manager</h3>
+                      <p class="helper-text">Create brackets, schedules, and reward structures for competitive events.</p>
+                    </div>
+                  </div>
+                  <div class="empty-state"><p>Coming soon: tournament scheduling, bracket views, and payout automation.</p></div>
+                </article>
+              </div>
+            </section>
+
+            <section class="player-center-panel" data-player-center-panel="rankings">
+              <div class="overview-grid overview-grid--wide">
+                <article class="panel">
+                  <div class="panel-heading">
+                    <div>
+                      <h3>Rankings</h3>
+                      <p class="helper-text">Track world, regional, and ladder standings.</p>
+                    </div>
+                    <div class="content-actions">
+                      <select class="ghost-button">
+                        <option>World</option>
+                        <option>Region</option>
+                        <option>Country</option>
+                        <option>League</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="empty-state"><p>Ranking pipelines will surface here when tournament data is connected.</p></div>
+                </article>
+              </div>
+            </section>
+
+            <section class="player-center-panel" data-player-center-panel="card-stats">
+              <div class="overview-grid overview-grid--wide">
+                <article class="panel">
+                  <div class="panel-heading">
+                    <div>
+                      <h3>Card Stats</h3>
+                      <p class="helper-text">Monitor win rates, pick rates, and deck impact.</p>
+                    </div>
+                  </div>
+                  <div class="empty-state"><p>Card performance analytics will populate after telemetry ingestion.</p></div>
+                </article>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section id="view-operators" class="view-section" data-view="operators">
+          <div class="operator-layout">
             <article class="panel">
               <div class="panel-heading">
                 <div>
-                  <h3>Player Accounts</h3>
-                  <p class="helper-text">Search and inspect any player record.</p>
+                  <h3>Operators</h3>
+                  <p class="helper-text">Administrative and support identities, including RBAC assignments.</p>
                 </div>
                 <div class="content-actions">
-                  <input id="userSearchInput" type="search" placeholder="Search username or email">
-                  <button id="reloadUsersButton" class="ghost-button" type="button">Reload</button>
+                  <input id="operatorSearchInput" type="search" placeholder="Search operator">
+                  <button id="reloadOperatorsButton" class="ghost-button" type="button">Reload</button>
                 </div>
               </div>
+
               <div class="table-wrap">
-                <table class="data-table">
-                  <thead><tr><th>User</th><th>Permission</th><th>Validated</th><th>Last Seen</th><th>Actions</th></tr></thead>
-                  <tbody id="usersTableBody"></tbody>
+                <table class="data-table operator-list-table">
+                  <thead><tr><th>Operator</th><th>Permission</th><th>Roles</th><th>Last Seen</th><th>Manage</th></tr></thead>
+                  <tbody id="operatorsTableBody"></tbody>
                 </table>
               </div>
             </article>
 
-            <article class="panel inspector-panel">
-              <div id="userDetailEmpty" class="empty-state">
-                <p>Select a player to inspect.</p>
-              </div>
-
-              <div id="userDetailCard" class="is-hidden">
-                <div class="detail-hero">
-                  <div>
-                    <h3 id="detailUsername" class="detail-title">Unknown</h3>
-                    <p id="detailEmail" class="detail-subtitle">No email</p>
-                  </div>
-                  <div id="detailBadges" class="badge-row"></div>
+            <article class="panel operator-detail-card">
+              <div class="panel-heading">
+                <div>
+                  <h3>Operator Detail</h3>
+                  <p class="helper-text">Select an operator to inspect access and adjust roles.</p>
                 </div>
-
-                <div id="detailStats" class="mini-stats"></div>
-
-                <form id="permissionForm" class="action-form">
-                  <h4>Permission Level</h4>
-                  <label class="field">
-                    <span>Permission</span>
-                    <select id="permissionSelect" name="permission_level"></select>
-                  </label>
-                  <div class="auth-actions">
-                    <button class="primary-button" type="submit">Update Permission</button>
-                  </div>
-                </form>
-
-                <form id="playerStateForm" class="action-form">
-                  <h4>Player State</h4>
-                  <div class="action-grid">
-                    <label class="field">
-                      <span>Coins</span>
-                      <input id="playerCoinsInput" name="coins" type="number" min="0">
-                    </label>
-                    <label class="field">
-                      <span>XP</span>
-                      <input id="playerXpInput" name="xp" type="number" min="0">
-                    </label>
-                    <label class="field">
-                      <span>ELO</span>
-                      <input id="playerEloInput" name="elo" type="number" min="0">
-                    </label>
-                    <label class="field">
-                      <span>Validation</span>
-                      <input id="playerValidationInput" name="validation_level" type="number" min="0">
-                    </label>
-                    <label class="field">
-                      <span>Avatar</span>
-                      <input id="playerAvatarInput" name="avatar" type="text">
-                    </label>
-                    <label class="field">
-                      <span>Cardback</span>
-                      <input id="playerCardbackInput" name="cardback" type="text">
-                    </label>
-                  </div>
-                  <div class="auth-actions">
-                    <button class="primary-button" type="submit">Save Player</button>
-                  </div>
-                </form>
-
-                <form id="rewardGrantForm" class="action-form">
-                  <h4>Grant Reward</h4>
-                  <label class="field">
-                    <span>Reward</span>
-                    <select id="rewardSelect" name="reward"></select>
-                  </label>
-                  <div class="auth-actions">
-                    <button class="primary-button" type="submit">Grant Reward</button>
-                  </div>
-                </form>
-
-                <form id="roleAssignForm" class="action-form">
-                  <h4>RBAC Roles</h4>
-                  <p id="roleHint" class="helper-text">Assigned roles: none.</p>
-                  <label class="field">
-                    <span>Roles</span>
-                    <select id="roleSelect" name="roles" multiple size="6"></select>
-                  </label>
-                  <div class="auth-actions">
-                    <button class="primary-button" type="submit">Save Roles</button>
-                  </div>
-                </form>
-
-                <section class="json-preview">
-                  <div class="json-head">
-                    <h4>User JSON</h4>
-                    <button id="copyUserJsonButton" class="ghost-button" type="button">Copy JSON</button>
-                  </div>
-                  <pre id="userJsonPreview"></pre>
-                </section>
               </div>
+
+              <div id="operatorDetailSummary" class="operator-summary">
+                <div class="empty-state"><p>No operator selected.</p></div>
+              </div>
+
+              <form id="operatorPermissionForm" class="action-form is-hidden">
+                <h4>Permission Level</h4>
+                <label class="field">
+                  <span>Permission</span>
+                  <select id="operatorPermissionSelect" name="permission_level"></select>
+                </label>
+                <div class="auth-actions">
+                  <button class="primary-button" type="submit">Save Permission</button>
+                </div>
+              </form>
+
+              <form id="operatorRolesForm" class="action-form is-hidden">
+                <h4>RBAC Roles</h4>
+                <label class="field">
+                  <span>Roles</span>
+                  <select id="operatorRolesSelect" name="roles" multiple size="8"></select>
+                </label>
+                <div class="auth-actions">
+                  <button class="primary-button" type="submit">Save Roles</button>
+                </div>
+              </form>
+
+              <div id="operatorRoleLibrary" class="field-list">
+                <article class="field-row">
+                  <strong>Role Library</strong>
+                  <span class="table-note">Create reusable operator roles without leaving the Operators view.</span>
+                  <div id="operatorRoleList" class="stack-list"></div>
+                </article>
+                <form id="operatorRoleEditorForm" class="action-form is-hidden">
+                  <h4>Role Editor</h4>
+                  <label class="field"><span>Role ID</span><input id="operatorRoleIdInput" type="text" placeholder="matchmaking-admin"></label>
+                  <label class="field"><span>Name</span><input id="operatorRoleNameInput" type="text" placeholder="Matchmaking Admin"></label>
+                  <label class="field"><span>Description</span><textarea id="operatorRoleDescriptionInput" placeholder="Controls queues, settings, and diagnostics."></textarea></label>
+                  <label class="field"><span>Permissions</span><select id="operatorRolePermissionsInput" multiple size="10"></select></label>
+                  <div class="button-row">
+                    <button class="primary-button" type="submit">Save Role</button>
+                    <button id="operatorRoleDeleteButton" class="danger-button" type="button">Delete Role</button>
+                    <button id="operatorRoleResetButton" class="ghost-button" type="button">New Role</button>
+                  </div>
+                </form>
+              </div>
+
+              <div>
+                <div class="json-head panel-heading"><h4>Operator JSON</h4></div>
+                <pre id="operatorJson" class="code-panel json-panel">{}</pre>
+              </div>
+              <p id="operatorStatus" class="status-text"></p>
             </article>
           </div>
-        </section>
-
-        <section id="view-staff" class="view-section" data-view="staff">
-          <article class="panel">
-            <div class="panel-heading"><h3>Staff View</h3></div>
-            <p class="helper-text">
-              Admin role assignments are managed from the player inspector. Select an admin-level user in the Players tab to review and update RBAC roles.
-            </p>
-          </article>
         </section>
 
         <section id="view-card-studio" class="view-section" data-view="card-studio">
-          <article class="panel">
-            <div class="panel-heading"><h3>Card Studio</h3></div>
-            <p class="helper-text">Catalog editing is currently handled from the Catalog tab.</p>
-          </article>
+          <div class="studio-shell">
+            <aside id="studioLibraryPanel" class="panel studio-panel studio-side">
+              <div class="panel-heading">
+                <div>
+                  <h3>Studio Library</h3>
+                  <p class="helper-text">Cards, types, frames, backs, sets, and packs.</p>
+                </div>
+                <button id="studioCollapseLibraryButton" class="icon-button" type="button" aria-label="Collapse library">◀</button>
+              </div>
+
+              <div class="tab-strip" id="studioCollectionTabs">
+                <button class="tab-button is-active" type="button" data-studio-kind="types">Types</button>
+                <button class="tab-button" type="button" data-studio-kind="frames">Frames</button>
+                <button class="tab-button" type="button" data-studio-kind="backs">Backs</button>
+              </div>
+
+              <label class="field">
+                <span>Search</span>
+                <input id="studioSearchInput" type="search" placeholder="Search studio entries">
+              </label>
+
+              <div class="button-row">
+                <button id="studioNewButton" class="ghost-button" type="button">New Draft</button>
+                <button id="studioReloadButton" class="ghost-button" type="button">Reload</button>
+              </div>
+
+              <div id="studioList" class="studio-list"></div>
+            </aside>
+
+            <section class="panel studio-panel studio-canvas-panel">
+              <div class="studio-toolbar">
+                <div class="studio-toolbar__group">
+                  <button id="studioExpandLibraryButton" class="icon-button is-hidden" type="button" aria-label="Expand library">▶</button>
+                  <button id="studioSelectModeButton" class="toggle-button is-active" type="button">Select</button>
+                  <button id="studioDrawModeButton" class="toggle-button" type="button">Draw Zone</button>
+                  <button id="studioSnapToggleButton" class="toggle-button is-active" type="button">Snap Grid</button>
+                  <label class="studio-toolbar__field" for="studioGridSizeInput">
+                    <span>Grid</span>
+                    <select id="studioGridSizeInput">
+                      <option value="4">4</option>
+                      <option value="8" selected>8</option>
+                      <option value="12">12</option>
+                      <option value="16">16</option>
+                      <option value="24">24</option>
+                      <option value="32">32</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="studio-toolbar__group">
+                  <span id="studioStatus" class="meta-badge">Card Studio ready</span>
+                  <button id="studioSaveButton" class="primary-button" type="button">Save</button>
+                  <button id="studioDeleteButton" class="danger-button" type="button">Delete</button>
+                </div>
+              </div>
+
+              <div class="studio-stage-meta">
+                <div>
+                  <p class="eyebrow">Canvas</p>
+                  <h3 id="studioTitle">Card Type Layout</h3>
+                  <p id="studioSubtitle" class="section-copy">Draw zones by dragging rectangles. Types own zones and frame assignment; frames and backs own their background images.</p>
+                </div>
+                <div class="badge-row">
+                  <span id="studioDimensionBadge" class="meta-badge">360 × 520</span>
+                  <span id="studioSelectionBadge" class="meta-badge">No zone selected</span>
+                </div>
+              </div>
+
+              <div class="studio-stage-shell">
+                <div id="studioCanvas" class="studio-canvas"></div>
+              </div>
+            </section>
+
+            <aside id="studioInspectorPanel" class="panel studio-panel studio-side">
+              <div class="panel-heading">
+                <div>
+                  <h3>Inspector</h3>
+                  <p class="helper-text">Template properties, derived zone properties, and selected zone rules.</p>
+                </div>
+                <button id="studioCollapseInspectorButton" class="icon-button" type="button" aria-label="Collapse inspector">▶</button>
+              </div>
+
+              <div class="button-row">
+                <button id="studioExpandInspectorButton" class="icon-button is-hidden" type="button" aria-label="Expand inspector">◀</button>
+              </div>
+
+              <div id="studioEntityEditor" class="studio-editor"></div>
+              <div id="studioFieldEditor" class="field-list"></div>
+              <div id="studioZoneEditor" class="studio-editor"></div>
+            </aside>
+          </div>
         </section>
 
-        <section id="view-flow-designer" class="view-section" data-view="flow-designer">
-          <article class="panel">
-            <div class="panel-heading"><h3>Flow Designer</h3></div>
-            <p class="helper-text">Game-flow documents are managed from the Catalog tab through the existing content editor.</p>
-          </article>
+        <section id="view-turn-phase-designer" class="view-section" data-view="turn-phase-designer">
+          <div class="phase-shell">
+            <aside class="panel phase-panel phase-side">
+              <div class="panel-heading">
+                <div>
+                  <h3>Flows</h3>
+                  <p class="helper-text">Each flow starts with Start Of Turn and End Of Turn already on the canvas.</p>
+                </div>
+              </div>
+
+              <form id="phaseFlowForm" class="phase-editor">
+                <label class="field">
+                  <span>Flow ID</span>
+                  <input id="phaseFlowTid" name="tid" type="text" placeholder="core_turn_flow">
+                </label>
+                <label class="field">
+                  <span>Flow Name</span>
+                  <input id="phaseFlowName" name="name" type="text" placeholder="Core Turn Structure">
+                </label>
+                <label class="field">
+                  <span>Description</span>
+                  <textarea id="phaseFlowDescription" name="description" placeholder="High-level summary of the turn structure"></textarea>
+                </label>
+              </form>
+
+              <div class="button-row">
+                <button id="phaseNewFlowButton" class="ghost-button" type="button">New Flow</button>
+                <button id="phaseReloadButton" class="ghost-button" type="button">Reload</button>
+              </div>
+
+              <div id="phaseFlowList" class="phase-flow-list"></div>
+            </aside>
+
+            <section class="panel phase-panel phase-canvas-panel">
+              <div class="phase-toolbar">
+                <div class="phase-toolbar__group">
+                  <button id="phaseAddNodeButton" class="ghost-button" type="button">Add Phase</button>
+                  <button id="phaseConnectButton" class="toggle-button" type="button">Connect Selected</button>
+                </div>
+                <div class="phase-toolbar__group">
+                  <span id="phaseStatus" class="meta-badge">Turn phase designer ready</span>
+                  <button id="phaseSaveButton" class="primary-button" type="button">Save Flow</button>
+                  <button id="phaseDeleteButton" class="danger-button" type="button">Delete Flow</button>
+                </div>
+              </div>
+
+              <div class="phase-stage-meta">
+                <div>
+                  <p class="eyebrow">Graph Canvas</p>
+                  <h3>Turn Phase Graph</h3>
+                  <p class="section-copy">Drag phase nodes, connect them in order, and define actions, responses, and state checks for each step.</p>
+                </div>
+                <div class="badge-row">
+                  <span id="phaseSelectedBadge" class="meta-badge">No phase selected</span>
+                </div>
+              </div>
+
+              <div class="phase-canvas-shell">
+                <svg id="phaseLinkLayer" aria-hidden="true"></svg>
+                <div id="phaseCanvas" class="phase-canvas"></div>
+              </div>
+            </section>
+
+            <aside class="panel phase-panel phase-side">
+              <div class="panel-heading">
+                <div>
+                  <h3>Phase Inspector</h3>
+                  <p class="helper-text">Node actions map directly to websocket phase payloads at runtime.</p>
+                </div>
+              </div>
+
+              <div id="phaseNodeInspector" class="phase-editor">
+                <div class="empty-state"><p>Select a node to edit its phase logic.</p></div>
+              </div>
+
+              <div>
+                <div class="json-head panel-heading"><h4>Connections</h4></div>
+                <div id="phaseConnectionList" class="phase-connection-list"></div>
+              </div>
+            </aside>
+          </div>
         </section>
 
         <section id="view-catalog" class="view-section" data-view="catalog">
-          <article class="panel">
-            <div class="panel-heading">
+          <article class="panel catalog-filter-panel">
+            <div class="catalog-toolbar">
               <div>
-                <h3>Catalog Modules</h3>
-                <p class="helper-text">Switch between cards, packs, decks, variants, and rewards.</p>
+                <p class="eyebrow">Catalog Control</p>
+                <h3>Manage cards and card types with enterprise-ready workflows.</h3>
+                <p class="section-copy">Switch between cards and types, edit with modal workflows, and gate publish status by review state.</p>
+              </div>
+              <div class="button-row catalog-actions">
+                <button id="catalogCreateButton" class="primary-button" type="button">Create</button>
+                <button id="catalogFiltersButton" class="ghost-button" type="button">Filters</button>
+                <sl-dropdown placement="bottom-end">
+                  <button slot="trigger" class="ghost-button" type="button">Actions</button>
+                  <sl-menu>
+                    <sl-menu-item id="catalogImportButton">Import</sl-menu-item>
+                    <sl-menu-item id="catalogExportButton">Export</sl-menu-item>
+                    <sl-menu-item id="catalogReloadButton">Reload</sl-menu-item>
+                    <sl-menu-item id="catalogResetFiltersButton">Reset Filters</sl-menu-item>
+                  </sl-menu>
+                </sl-dropdown>
               </div>
             </div>
-            <div id="contentTabs" class="tab-strip"></div>
+
+            <div class="tab-strip catalog-tab-strip">
+              <button class="tab-button is-active" type="button" data-catalog-tab="cards">Cards</button>
+              <button class="tab-button" type="button" data-catalog-tab="types">Card Types</button>
+              <button class="tab-button" type="button" data-catalog-tab="keywords">Keywords</button>
+            </div>
+
+
+            <div id="catalogActiveFilters" class="filter-chip-list"></div>
+            <div id="catalogMeta" class="catalog-meta"></div>
           </article>
 
-          <div class="split-grid">
+          <div id="catalogDetailGrid" class="catalog-detail-grid">
             <article class="panel">
-              <div class="panel-heading"><h3 id="contentFormTitle">Catalog Editor</h3></div>
-              <form id="contentForm" class="dynamic-form"></form>
+              <div id="catalogTypeTabStrip" class="tab-strip catalog-subtab-strip is-hidden">
+                <button class="tab-button is-active" type="button" data-type-tab="types">Types</button>
+                <button class="tab-button" type="button" data-type-tab="frames">Frames</button>
+                <button class="tab-button" type="button" data-type-tab="backs">Backs</button>
+              </div>
+              <div id="catalogList" class="table-wrap table-wrap-tall"></div>
+            </article>
+
+            <aside class="panel catalog-detail">
+              <div class="panel-heading">
+                <div>
+                  <h3>Card Detail</h3>
+                  <p class="helper-text">Select a card to inspect its metadata and studio bindings.</p>
+                </div>
+              </div>
+
+              <div id="catalogDetail" class="catalog-detail">
+                <div class="empty-state"><p>Select a card from the catalog grid.</p></div>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section id="view-news-events" class="view-section" data-view="news-events">
+          <div class="overview-grid overview-grid--wide">
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">News &amp; Events</p>
+                  <h3>Push announcements and live events to clients.</h3>
+                  <p class="helper-text">Draft, schedule, and broadcast content with audience targeting.</p>
+                </div>
+              </div>
+              <form class="action-form">
+                <div class="field-row__grid">
+                  <label class="field"><span>Title</span><input type="text" placeholder="Patch 1.8 Live"></label>
+                  <label class="field"><span>Category</span>
+                    <select>
+                      <option>News</option>
+                      <option>Event</option>
+                      <option>Maintenance</option>
+                    </select>
+                  </label>
+                  <label class="field"><span>Audience</span>
+                    <select>
+                      <option>All Players</option>
+                      <option>Ranked</option>
+                      <option>Casual</option>
+                      <option>Region</option>
+                    </select>
+                  </label>
+                  <label class="field"><span>Start Time</span><input type="datetime-local"></label>
+                </div>
+                <label class="field"><span>Summary</span><textarea rows="4" placeholder="Short announcement summary."></textarea></label>
+                <div class="button-row">
+                  <button class="ghost-button" type="button">Save Draft</button>
+                  <button class="primary-button" type="button">Publish &amp; Push</button>
+                </div>
+              </form>
             </article>
 
             <article class="panel">
               <div class="panel-heading">
                 <div>
-                  <h3 id="contentListTitle">Catalog List</h3>
-                  <p class="helper-text">Filter and edit stored catalog entries.</p>
-                </div>
-                <div class="content-actions">
-                  <input id="contentSearchInput" type="search" placeholder="Search catalog">
-                  <button id="reloadContentButton" class="ghost-button" type="button">Reload</button>
+                  <h3>Live Feed</h3>
+                  <p class="helper-text">Recently published announcements and scheduled events.</p>
                 </div>
               </div>
-              <div id="contentList" class="content-list"></div>
-            </article>
-          </div>
-        </section>
-
-        <section id="view-operations" class="view-section" data-view="operations">
-          <article class="panel">
-            <div class="panel-heading">
-              <div>
-                <h3>Audit Log</h3>
-                <p class="helper-text">Filter the activity stream by event type or user.</p>
-              </div>
-              <button id="reloadActivityButton" class="ghost-button" type="button">Reload Activity</button>
-            </div>
-            <form id="activityFilterForm" class="filter-form">
-              <label class="field">
-                <span>Event Type</span>
-                <input id="activityTypeInput" name="type" type="text" placeholder="register">
-              </label>
-              <label class="field">
-                <span>Username</span>
-                <input id="activityUserInput" name="username" type="text" placeholder="playername">
-              </label>
-              <label class="field">
-                <span>Limit</span>
-                <input id="activityLimitInput" name="limit" type="number" min="1" value="30">
-              </label>
-              <div class="auth-actions">
-                <button class="primary-button" type="submit">Apply Filter</button>
-              </div>
-            </form>
-            <div class="table-wrap table-wrap-tall">
-              <table class="data-table">
-                <thead><tr><th>Event</th><th>Actor</th><th>Time</th><th>Details</th></tr></thead>
-                <tbody id="activityTableBody"></tbody>
-              </table>
-            </div>
-          </article>
-
-          <div class="split-grid">
-            <article class="panel">
-              <div class="panel-heading"><h3>Recent Matches</h3></div>
-              <div class="table-wrap">
-                <table class="data-table">
-                  <thead><tr><th>Match</th><th>Players</th><th>Winner</th><th>Mode</th><th>Actions</th></tr></thead>
-                  <tbody id="matchesTableBody"></tbody>
-                </table>
-              </div>
-            </article>
-
-            <article class="panel">
-              <div class="panel-heading"><h3>Market Offers</h3></div>
-              <div class="table-wrap">
-                <table class="data-table">
-                  <thead><tr><th>Seller</th><th>Card</th><th>Variant</th><th>Qty</th><th>Price</th><th>Actions</th></tr></thead>
-                  <tbody id="marketOffersTableBody"></tbody>
-                </table>
-              </div>
+              <div class="empty-state"><p>Connect the news/event pipeline to populate this feed.</p></div>
             </article>
           </div>
         </section>
@@ -390,7 +727,91 @@
     </main>
   </div>
 
+  <sl-dialog id="catalogCardEditorDialog" label="Card Editor">
+    <div id="catalogCardEditorBody"></div>
+  </sl-dialog>
+
+  <sl-dialog id="catalogConfirmDialog" label="Confirm Action">
+    <div id="catalogConfirmBody"></div>
+    <div slot="footer" class="button-row button-row--end">
+      <button id="catalogConfirmCancelButton" class="ghost-button" type="button">Cancel</button>
+      <button id="catalogConfirmSubmitButton" class="danger-button" type="button">Confirm</button>
+    </div>
+  </sl-dialog>
+
+  <sl-dialog id="catalogImportDialog" label="Import Catalog">
+    <form id="catalogImportForm" class="action-form">
+      <label class="field"><span>Format</span>
+        <select id="catalogImportFormatInput">
+          <option value="json">JSON</option>
+          <option value="csv">CSV</option>
+          <option value="xls">XLS/XLSX</option>
+        </select>
+      </label>
+      <label class="field"><span>Import File</span><input id="catalogImportFileInput" type="file" accept=".json,.csv,.xls,.xlsx"></label>
+      <label class="field field--inline"><span>Batch upload images</span><input id="catalogImportImagesToggle" type="checkbox" checked></label>
+      <div slot="footer" class="button-row button-row--end">
+        <button id="catalogImportCancelButton" class="ghost-button" type="button">Cancel</button>
+        <button class="primary-button" type="submit">Import</button>
+      </div>
+    </form>
+  </sl-dialog>
+
+  <sl-dialog id="catalogExportDialog" label="Export Catalog">
+    <form id="catalogExportForm" class="action-form">
+      <label class="field"><span>Format</span>
+        <select id="catalogExportFormatInput">
+          <option value="json">JSON</option>
+          <option value="csv">CSV</option>
+          <option value="xls">XLS/XLSX</option>
+        </select>
+      </label>
+      <label class="field"><span>Export Scope</span>
+        <select id="catalogExportScopeInput">
+          <option value="filtered">Current filters</option>
+          <option value="all">All records</option>
+        </select>
+      </label>
+      <div slot="footer" class="button-row button-row--end">
+        <button id="catalogExportCancelButton" class="ghost-button" type="button">Cancel</button>
+        <button class="primary-button" type="submit">Export</button>
+      </div>
+    </form>
+  </sl-dialog>
+
+  <sl-dialog id="catalogKeywordDialog" label="Keyword Editor">
+    <form id="catalogKeywordForm" class="action-form">
+      <label class="field"><span>Keyword ID</span><input id="catalogKeywordTidInput" type="text" placeholder="rush"></label>
+      <label class="field"><span>Name</span><input id="catalogKeywordNameInput" type="text" placeholder="Rush"></label>
+      <label class="field"><span>Description</span><textarea id="catalogKeywordDescriptionInput" placeholder="Can act the turn it enters play."></textarea></label>
+      <div class="button-row button-row--end">
+        <button id="catalogKeywordCancelButton" class="ghost-button" type="button">Cancel</button>
+        <button id="catalogKeywordDeleteButton" class="danger-button" type="button">Delete</button>
+        <button class="primary-button" type="submit">Save Keyword</button>
+      </div>
+      <p id="catalogKeywordStatus" class="status-text"></p>
+    </form>
+  </sl-dialog>
+
+  <div id="catalogColumnMenu" class="catalog-column-menu is-hidden" role="menu" aria-label="Column visibility">
+    <div class="catalog-column-menu__title">Columns</div>
+    <div id="catalogColumnMenuList" class="catalog-column-menu__list"></div>
+  </div>
+
   <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/shoelace-autoloader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="/admin-common.js"></script>
+  <script src="/admin-image-fields.js"></script>
+  <script src="/studio-zone-bindings.js"></script>
   <script src="/dashboard.js"></script>
+  <script src="/admin-matchmaking.js"></script>
+  <script src="/admin-overview.js"></script>
+  <script src="/admin-players.js"></script>
+  <script src="/admin-catalog.js"></script>
+  <script src="/admin-turn-phase.js"></script>
+  <script src="/card-studio-canvas.js"></script>
+  <script src="/card-studio.js"></script>
 </body>
 </html>

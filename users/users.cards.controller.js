@@ -15,7 +15,7 @@ exports.UpdateDeck = async(req, res) => {
   const deckId = req.params.deckId;
 
   const newDeck = {
-    tid: req.params.id,
+    tid: deckId,
     title: req.body.title || "Deck",
     hero: req.body.hero || {},
     cards: req.body.cards || [],
@@ -28,19 +28,48 @@ exports.UpdateDeck = async(req, res) => {
   const decks = user.decks || [];
   let found = false;
   let index = 0;
+  const preserveDeckStats = (existingDeck = {}) => ({
+    ranked_mmr: existingDeck.ranked_mmr,
+    casual_mmr: existingDeck.casual_mmr,
+    ranked_matches: existingDeck.ranked_matches,
+    ranked_wins: existingDeck.ranked_wins,
+    ranked_losses: existingDeck.ranked_losses,
+    casual_matches: existingDeck.casual_matches,
+    casual_wins: existingDeck.casual_wins,
+    casual_losses: existingDeck.casual_losses,
+    ranked_provisional_matches: existingDeck.ranked_provisional_matches,
+    casual_provisional_matches: existingDeck.casual_provisional_matches,
+  });
+
   for(let i=0; i<decks.length; i++){
       const deck = decks[i];
       if(deck.tid === deckId)
       {
-         decks[i]= newDeck;
-         found = true;
-         index = i;
-      }
+         decks[i]= {
+           ...deck,
+           ...preserveDeckStats(deck),
+           ...newDeck,
+         };
+          found = true;
+          index = i;
+       }
     }
 
     //Add new
     if(!found && newDeck.cards.length > 0)
-      decks.push(newDeck);
+      decks.push({
+        ...newDeck,
+        ranked_mmr: Number.isFinite(Number(user.elo)) ? Number(user.elo) : Number(config.start_elo || 1000),
+        casual_mmr: Number.isFinite(Number(user.casual_mmr)) ? Number(user.casual_mmr) : (Number.isFinite(Number(user.elo)) ? Number(user.elo) : Number(config.start_elo || 1000)),
+        ranked_matches: 0,
+        ranked_wins: 0,
+        ranked_losses: 0,
+        casual_matches: 0,
+        casual_wins: 0,
+        casual_losses: 0,
+        ranked_provisional_matches: 0,
+        casual_provisional_matches: 0,
+      });
 
     //Delete deck
     if(found && newDeck.cards.length === 0)
