@@ -6,6 +6,7 @@ const DEFAULT_JWT_SECRET = 'JWT_123456789';
 const DOTENV_FILES = ['.env', '.env.local'];
 const DATABASE_ENV_KEYS = [
   'MONGO_URI',
+  'MONGODB_URI',
   'MONGO_HOST',
   'MONGO_PORT',
   'MONGO_DB',
@@ -355,7 +356,7 @@ const buildConfig = () => {
     ? `${encodeURIComponent(config.mongo_user)}:${encodeURIComponent(config.mongo_pass)}@`
     : '';
   const mongoAuthSource = mongoCredentials ? '?authSource=admin' : '';
-  config.mongo_uri = process.env.MONGO_URI
+  config.mongo_uri = process.env.MONGODB_URI || process.env.MONGO_URI
     || `mongodb://${mongoCredentials}${config.mongo_host}:${config.mongo_port}/${config.mongo_db}${mongoAuthSource}`;
 
   const defaultPorts = {
