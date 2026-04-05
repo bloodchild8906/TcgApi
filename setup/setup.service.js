@@ -13,7 +13,7 @@ const UserTool = require('../users/users.tool');
 const Validator = require('../tools/validator.tool');
 
 const SUPPORTED_DRIVERS = ['mongo', 'mysql', 'postgres', 'mssql'];
-const CONNECTION_TIMEOUT_MS = 5000;
+const CONNECTION_TIMEOUT_MS = 30000;
 const ENV_FILE_NAME = '.env';
 const DRIVER_EXAMPLES = {
   mongo: 'mongodb://127.0.0.1:27017/tcgengine',
@@ -134,6 +134,8 @@ const testMongoConnection = async (url) => {
   try {
     await instance.connect(url, {
       serverSelectionTimeoutMS: CONNECTION_TIMEOUT_MS,
+      connectTimeoutMS: CONNECTION_TIMEOUT_MS,
+      socketTimeoutMS: CONNECTION_TIMEOUT_MS,
     });
   } finally {
     await instance.disconnect().catch(() => {});
