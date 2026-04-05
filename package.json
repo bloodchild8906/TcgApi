@@ -20,7 +20,6 @@
     "express-slow-down": "^1.5.0",
     "jsonwebtoken": "^9.0.0",
     "mongoose": "^6.8.4",
-    "msnodesqlv8": "^5.1.8",
     "mssql": "^12.2.1",
     "mysql2": "^3.20.0",
     "node-schedule": "^2.1.1",
