@@ -72,12 +72,15 @@ exports.applySetup = (runtime) => async (req, res) => {
     }
 
     const env = SetupService.writeSetupEnv(payload);
+    console.log('[v0] applySetup - .env written, contents:', env);
 
     if (typeof runtime.completeSetup !== 'function') {
       throw new Error('Server runtime is missing the setup activation hook');
     }
 
+    console.log('[v0] applySetup - calling runtime.completeSetup()');
     await runtime.completeSetup();
+    console.log('[v0] applySetup - runtime.completeSetup() completed');
     const admin = await SetupService.bootstrapAdminUser(payload.admin);
     const setupState = await SetupService.getSetupState(runtime);
 
