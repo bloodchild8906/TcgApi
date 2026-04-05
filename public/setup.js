@@ -232,7 +232,7 @@
       jwt_secret: elements.jwtSecretInput.value,
       ops_db_driver: elements.opsDriverSelect.value,
       ops_db_url: elements.opsUrlInput.value,
-      skip_validation: elements.skipValidationCheckbox.checked,
+      skip_validation: elements.skipValidationCheckbox?.checked ?? false,
       use_same_operations_store: elements.shareOpsCheckbox.checked,
     };
   };
