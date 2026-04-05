@@ -30,6 +30,7 @@
     setupForm: document.getElementById('setupForm'),
     setupReason: document.getElementById('setupReason'),
     shareOpsCheckbox: document.getElementById('shareOpsCheckbox'),
+    skipValidationCheckbox: document.getElementById('skipValidationCheckbox'),
     statusBadge: document.getElementById('statusBadge'),
     supportedDrivers: document.getElementById('supportedDrivers'),
     testConnectionButton: document.getElementById('testConnectionButton'),
@@ -231,6 +232,7 @@
       jwt_secret: elements.jwtSecretInput.value,
       ops_db_driver: elements.opsDriverSelect.value,
       ops_db_url: elements.opsUrlInput.value,
+      skip_validation: elements.skipValidationCheckbox.checked,
       use_same_operations_store: elements.shareOpsCheckbox.checked,
     };
   };

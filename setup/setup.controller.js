@@ -27,6 +27,22 @@ exports.validateConnections = (runtime) => async (req, res) => {
     await requireSetupMode(runtime);
 
     const payload = SetupService.normalizeSetupPayload(req.body);
+    const skipValidation = req.body.skip_validation === true || req.body.skip_validation === 'true';
+
+    if (skipValidation) {
+      // Skip actual connection test - useful for restricted network environments
+      const connections = [
+        { driver: payload.game_db.driver, label: 'Gameplay store', success: true, skipped: true },
+        { driver: payload.ops_db.driver, label: 'Operations store', success: true, skipped: true },
+      ];
+      res.status(200).send({
+        connections,
+        success: true,
+        validation_skipped: true,
+      });
+      return;
+    }
+
     const connections = await SetupService.validateConnections(payload);
 
     res.status(200).send({
@@ -43,7 +59,18 @@ exports.applySetup = (runtime) => async (req, res) => {
     await requireSetupMode(runtime);
 
     const payload = SetupService.normalizeSetupPayload(req.body);
-    const connections = await SetupService.validateConnections(payload);
+    const skipValidation = req.body.skip_validation === true || req.body.skip_validation === 'true';
+
+    let connections;
+    if (skipValidation) {
+      connections = [
+        { driver: payload.game_db.driver, label: 'Gameplay store', success: true, skipped: true },
+        { driver: payload.ops_db.driver, label: 'Operations store', success: true, skipped: true },
+      ];
+    } else {
+      connections = await SetupService.validateConnections(payload);
+    }
+
     const env = SetupService.writeSetupEnv(payload);
 
     if (typeof runtime.completeSetup !== 'function') {
