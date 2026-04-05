@@ -275,9 +275,6 @@ const connectConfiguredStores = async () => {
 
   try {
     if (usesMongoConnection()) {
-      console.log('[v0] connectConfiguredStores - config.mongo_uri:', config.mongo_uri);
-      console.log('[v0] connectConfiguredStores - process.env.MONGODB_URI:', process.env.MONGODB_URI ? 'SET' : 'NOT SET');
-      console.log('[v0] connectConfiguredStores - process.env.MONGO_URI:', process.env.MONGO_URI ? 'SET' : 'NOT SET');
       await mongoose.connect(config.mongo_uri, {
         serverSelectionTimeoutMS: config.mongo_server_selection_timeout_ms,
       });
@@ -461,11 +458,7 @@ const activateConfiguredRuntime = async ({ allowSetupModeOnFailure = false } = {
 runtime.getSetupState = getRuntimeSetupState;
 
 runtime.completeSetup = async () => {
-    console.log('[v0] completeSetup - before reload, config.mongo_uri:', config.mongo_uri);
-    console.log('[v0] completeSetup - before reload, process.env.MONGO_URI:', process.env.MONGO_URI ? 'SET' : 'NOT SET');
     config.reload();
-    console.log('[v0] completeSetup - after reload, config.mongo_uri:', config.mongo_uri);
-    console.log('[v0] completeSetup - after reload, process.env.MONGO_URI:', process.env.MONGO_URI ? 'SET' : 'NOT SET');
     return activateConfiguredRuntime({ allowSetupModeOnFailure: true });
   };
 

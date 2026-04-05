@@ -207,7 +207,13 @@ const readEnvFile = () => {
 
 const formatEnvValue = (value) => {
   const text = String(value ?? '');
-  return /^[A-Za-z0-9_./:@-]+$/.test(text) ? text : JSON.stringify(text);
+  // Always quote values that contain special characters commonly found in connection strings
+  // This includes +, ?, =, &, #, spaces, quotes, and other characters that could cause parsing issues
+  if (/^[A-Za-z0-9_./:-]+$/.test(text)) {
+    return text;
+  }
+  // Use double quotes and escape any internal double quotes
+  return `"${text.replace(/"/g, '\\"')}"`;
 };
 
 const buildEnvFileContents = (entries) => {
