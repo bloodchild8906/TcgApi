@@ -146,8 +146,8 @@ const defaults = {
   version: '1.13',
   node_env: process.env.NODE_ENV || 'development',
 
-  port: 80,
-  port_https: 443,
+  port: 3000,
+  port_https: 3443,
   api_title: 'TCG Engine API',
   api_url: '',
 
