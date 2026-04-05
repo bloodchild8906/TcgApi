@@ -9,6 +9,7 @@
   },
   "scripts": {
     "start": "node server.js",
+    "dev": "node --watch server.js",
     "test": "node --test",
     "check": "node --check app.js && node --check server.js && node --check config.js && node --check jobs/jobs.js && node --check authorization/auth.tool.js && node --check authorization/auth.controller.js && node --check users/users.routes.js && node --check admin/admin.controller.js && node --check admin/admin.summary.service.js && node --check admin/admin.management.service.js && node --check setup/setup.service.js && node --check setup/setup.controller.js && node --check setup/setup.routes.js && node --check public/dashboard.js && node --check public/setup.js && node --check rbac/rbac.service.js && node --check trades/trades.service.js && node --check realtime/websocket.server.js && node --check rcon/rcon.server.js"
   },
