@@ -228,7 +228,7 @@ const buildEnvFileContents = (entries) => {
 const buildSetupEnvEntries = (payload) => {
   const existing = readEnvFile();
 
-  return {
+  const entries = {
     ...existing,
     API_TITLE: payload.api_title,
     GAME_DB_DRIVER: payload.game_db.driver,
@@ -237,6 +237,13 @@ const buildSetupEnvEntries = (payload) => {
     OPS_DB_DRIVER: payload.ops_db.driver,
     OPS_DB_URL: payload.ops_db.url,
   };
+
+  // When using MongoDB, also set MONGO_URI for proper config.mongo_uri resolution
+  if (payload.game_db.driver === 'mongo') {
+    entries.MONGO_URI = payload.game_db.url;
+  }
+
+  return entries;
 };
 
 exports.normalizeSetupPayload = (input = {}) => {
