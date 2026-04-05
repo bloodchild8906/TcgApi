@@ -1,0 +1,31 @@
+{
+  "name": "tcg-engine-api",
+  "version": "0.0.1",
+  "description": "REST API for TCG Engine card, user, match, reward, and market services.",
+  "main": "server.js",
+  "author": "IndieMarc",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test",
+    "check": "node --check app.js && node --check server.js && node --check config.js && node --check jobs/jobs.js && node --check authorization/auth.tool.js && node --check authorization/auth.controller.js && node --check users/users.routes.js && node --check admin/admin.controller.js && node --check admin/admin.summary.service.js && node --check admin/admin.management.service.js && node --check setup/setup.service.js && node --check setup/setup.controller.js && node --check setup/setup.routes.js && node --check public/dashboard.js && node --check public/setup.js && node --check rbac/rbac.service.js && node --check trades/trades.service.js && node --check realtime/websocket.server.js && node --check rcon/rcon.server.js"
+  },
+  "dependencies": {
+    "compression": "^1.8.1",
+    "dotenv": "^17.4.0",
+    "express": "^4.18.2",
+    "express-rate-limit": "^6.7.0",
+    "express-slow-down": "^1.5.0",
+    "jsonwebtoken": "^9.0.0",
+    "mongoose": "^6.8.4",
+    "msnodesqlv8": "^5.1.8",
+    "mssql": "^12.2.1",
+    "mysql2": "^3.20.0",
+    "node-schedule": "^2.1.1",
+    "nodemailer": "^8.0.4",
+    "pg": "^8.20.0",
+    "ws": "^8.20.0"
+  }
+}

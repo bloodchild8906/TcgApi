@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TCG Engine | Admin Suite</title>
+  <meta name="description" content="Advanced TCG Engine Administration & Card Creator">
+  <link rel="stylesheet" href="/dashboard.css">
+</head>
+<body>
+  <div class="scene">
+    <div class="scene-glow scene-glow-a"></div>
+    <div class="scene-glow scene-glow-b"></div>
+    <div class="scene-grid"></div>
+  </div>
+
+  <div class="shell">
+    <aside class="rail">
+      <div class="brand">
+        <p class="brand-kicker">TCG Engine</p>
+        <h1>Admin Suite</h1>
+        <p class="brand-copy">Integrated TCG Operations & Content Studio.</p>
+      </div>
+
+      <nav class="rail-nav" aria-label="Dashboard sections">
+        <button class="rail-link is-active" type="button" data-view-button="overview">Overview</button>
+        <button class="rail-link" type="button" data-view-button="players">Players</button>
+        <button class="rail-link" type="button" data-view-button="staff">Staff</button>
+        <button class="rail-link" type="button" data-view-button="card-studio">Card Studio</button>
+        <button class="rail-link" type="button" data-view-button="flow-designer">Flow Designer</button>
+        <button class="rail-link" type="button" data-view-button="catalog">Catalog</button>
+        <button class="rail-link" type="button" data-view-button="operations">Operations</button>
+      </nav>
+
+      <section class="session-card panel">
+        <div class="session-head">
+          <span class="eyebrow">Session</span>
+          <span id="sessionState" class="status-pill">Signed out</span>
+        </div>
+        <div id="sessionDetails" class="session-details">
+          <p>No active admin session.</p>
+        </div>
+        <div class="session-actions">
+          <button id="refreshAllButton" class="ghost-button" type="button" disabled>Refresh Data</button>
+          <button id="logoutButton" class="ghost-button" type="button" disabled>Sign Out</button>
+        </div>
+      </section>
+
+      <section class="panel rail-note">
+        <span class="eyebrow">Console</span>
+        <p>RCON Status: <span id="rconStatusLabel">Disabled</span></p>
+      </section>
+    </aside>
+
+    <main class="workspace">
+      <header class="masthead">
+        <div>
+          <p class="eyebrow">Management Portal</p>
+          <h2 id="viewTitle">Service Dashboard</h2>
+        </div>
+        <div class="masthead-meta">
+          <span id="systemVersion" class="meta-badge">Version unknown</span>
+          <span id="dbState" class="meta-badge">Database unknown</span>
+        </div>
+      </header>
+
+      <section id="authPanel" class="panel auth-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">Identity Verification</span>
+            <h3>Open an admin session</h3>
+          </div>
+        </div>
+
+        <form id="loginForm" class="auth-form">
+          <label class="field">
+            <span>Login mode</span>
+            <select id="loginMode" name="mode">
+              <option value="username">Username</option>
+              <option value="email">Email</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span id="identityLabel">Username</span>
+            <input id="loginIdentity" name="identity" type="text" autocomplete="username" required>
+          </label>
+
+          <label class="field">
+            <span>Password</span>
+            <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
+          </label>
+
+          <div class="auth-actions">
+            <button id="loginButton" class="primary-button" type="submit">Sign In</button>
+          </div>
+        </form>
+        <p id="authMessage" class="helper-text">Use an account with admin permissions.</p>
+      </section>
+
+      <div id="dashboardApp" class="dashboard-app is-hidden">
+        <section id="view-overview" class="view-section is-active" data-view="overview">
+          <div class="metrics-grid" id="metricsGrid"></div>
+          <div class="overview-grid">
+            <article class="panel">
+              <div class="panel-heading"><h3>System Health</h3></div>
+              <div id="healthGrid" class="health-grid"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading"><h3>Collection Density</h3></div>
+              <div id="collectionBars" class="collection-bars"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading"><h3>Alerts</h3></div>
+              <div id="alertList" class="stack-list"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading"><h3>Online Now</h3></div>
+              <div id="onlineUsersList" class="stack-list"></div>
+            </article>
+          </div>
+
+          <div class="overview-grid">
+            <article class="panel">
+              <div class="panel-heading"><h3>Recent Activity</h3></div>
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead><tr><th>Event</th><th>Actor</th><th>Time</th><th>Details</th></tr></thead>
+                  <tbody id="overviewActivityBody"></tbody>
+                </table>
+              </div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading"><h3>Recent Offers</h3></div>
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead><tr><th>Seller</th><th>Card</th><th>Variant</th><th>Qty</th><th>Price</th></tr></thead>
+                  <tbody id="overviewOffersBody"></tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+
+          <div class="overview-grid">
+            <article class="panel">
+              <div class="panel-heading"><h3>Recent Trades</h3></div>
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead><tr><th>Trade</th><th>Initiator</th><th>Target</th><th>Status</th></tr></thead>
+                  <tbody id="tradesTableBody"></tbody>
+                </table>
+              </div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading"><h3>Newest Users</h3></div>
+              <div id="newUsersList" class="stack-list"></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="view-players" class="view-section" data-view="players">
+          <div class="split-grid">
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <h3>Player Accounts</h3>
+                  <p class="helper-text">Search and inspect any player record.</p>
+                </div>
+                <div class="content-actions">
+                  <input id="userSearchInput" type="search" placeholder="Search username or email">
+                  <button id="reloadUsersButton" class="ghost-button" type="button">Reload</button>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead><tr><th>User</th><th>Permission</th><th>Validated</th><th>Last Seen</th><th>Actions</th></tr></thead>
+                  <tbody id="usersTableBody"></tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="panel inspector-panel">
+              <div id="userDetailEmpty" class="empty-state">
+                <p>Select a player to inspect.</p>
+              </div>
+
+              <div id="userDetailCard" class="is-hidden">
+                <div class="detail-hero">
+                  <div>
+                    <h3 id="detailUsername" class="detail-title">Unknown</h3>
+                    <p id="detailEmail" class="detail-subtitle">No email</p>
+                  </div>
+                  <div id="detailBadges" class="badge-row"></div>
+                </div>
+
+                <div id="detailStats" class="mini-stats"></div>
+
+                <form id="permissionForm" class="action-form">
+                  <h4>Permission Level</h4>
+                  <label class="field">
+                    <span>Permission</span>
+                    <select id="permissionSelect" name="permission_level"></select>
+                  </label>
+                  <div class="auth-actions">
+                    <button class="primary-button" type="submit">Update Permission</button>
+                  </div>
+                </form>
+
+                <form id="playerStateForm" class="action-form">
+                  <h4>Player State</h4>
+                  <div class="action-grid">
+                    <label class="field">
+                      <span>Coins</span>
+                      <input id="playerCoinsInput" name="coins" type="number" min="0">
+                    </label>
+                    <label class="field">
+                      <span>XP</span>
+                      <input id="playerXpInput" name="xp" type="number" min="0">
+                    </label>
+                    <label class="field">
+                      <span>ELO</span>
+                      <input id="playerEloInput" name="elo" type="number" min="0">
+                    </label>
+                    <label class="field">
+                      <span>Validation</span>
+                      <input id="playerValidationInput" name="validation_level" type="number" min="0">
+                    </label>
+                    <label class="field">
+                      <span>Avatar</span>
+                      <input id="playerAvatarInput" name="avatar" type="text">
+                    </label>
+                    <label class="field">
+                      <span>Cardback</span>
+                      <input id="playerCardbackInput" name="cardback" type="text">
+                    </label>
+                  </div>
+                  <div class="auth-actions">
+                    <button class="primary-button" type="submit">Save Player</button>
+                  </div>
+                </form>
+
+                <form id="rewardGrantForm" class="action-form">
+                  <h4>Grant Reward</h4>
+                  <label class="field">
+                    <span>Reward</span>
+                    <select id="rewardSelect" name="reward"></select>
+                  </label>
+                  <div class="auth-actions">
+                    <button class="primary-button" type="submit">Grant Reward</button>
+                  </div>
+                </form>
+
+                <form id="roleAssignForm" class="action-form">
+                  <h4>RBAC Roles</h4>
+                  <p id="roleHint" class="helper-text">Assigned roles: none.</p>
+                  <label class="field">
+                    <span>Roles</span>
+                    <select id="roleSelect" name="roles" multiple size="6"></select>
+                  </label>
+                  <div class="auth-actions">
+                    <button class="primary-button" type="submit">Save Roles</button>
+                  </div>
+                </form>
+
+                <section class="json-preview">
+                  <div class="json-head">
+                    <h4>User JSON</h4>
+                    <button id="copyUserJsonButton" class="ghost-button" type="button">Copy JSON</button>
+                  </div>
+                  <pre id="userJsonPreview"></pre>
+                </section>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="view-staff" class="view-section" data-view="staff">
+          <article class="panel">
+            <div class="panel-heading"><h3>Staff View</h3></div>
+            <p class="helper-text">
+              Admin role assignments are managed from the player inspector. Select an admin-level user in the Players tab to review and update RBAC roles.
+            </p>
+          </article>
+        </section>
+
+        <section id="view-card-studio" class="view-section" data-view="card-studio">
+          <article class="panel">
+            <div class="panel-heading"><h3>Card Studio</h3></div>
+            <p class="helper-text">Catalog editing is currently handled from the Catalog tab.</p>
+          </article>
+        </section>
+
+        <section id="view-flow-designer" class="view-section" data-view="flow-designer">
+          <article class="panel">
+            <div class="panel-heading"><h3>Flow Designer</h3></div>
+            <p class="helper-text">Game-flow documents are managed from the Catalog tab through the existing content editor.</p>
+          </article>
+        </section>
+
+        <section id="view-catalog" class="view-section" data-view="catalog">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <h3>Catalog Modules</h3>
+                <p class="helper-text">Switch between cards, packs, decks, variants, and rewards.</p>
+              </div>
+            </div>
+            <div id="contentTabs" class="tab-strip"></div>
+          </article>
+
+          <div class="split-grid">
+            <article class="panel">
+              <div class="panel-heading"><h3 id="contentFormTitle">Catalog Editor</h3></div>
+              <form id="contentForm" class="dynamic-form"></form>
+            </article>
+
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <h3 id="contentListTitle">Catalog List</h3>
+                  <p class="helper-text">Filter and edit stored catalog entries.</p>
+                </div>
+                <div class="content-actions">
+                  <input id="contentSearchInput" type="search" placeholder="Search catalog">
+                  <button id="reloadContentButton" class="ghost-button" type="button">Reload</button>
+                </div>
+              </div>
+              <div id="contentList" class="content-list"></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="view-operations" class="view-section" data-view="operations">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <h3>Audit Log</h3>
+                <p class="helper-text">Filter the activity stream by event type or user.</p>
+              </div>
+              <button id="reloadActivityButton" class="ghost-button" type="button">Reload Activity</button>
+            </div>
+            <form id="activityFilterForm" class="filter-form">
+              <label class="field">
+                <span>Event Type</span>
+                <input id="activityTypeInput" name="type" type="text" placeholder="register">
+              </label>
+              <label class="field">
+                <span>Username</span>
+                <input id="activityUserInput" name="username" type="text" placeholder="playername">
+              </label>
+              <label class="field">
+                <span>Limit</span>
+                <input id="activityLimitInput" name="limit" type="number" min="1" value="30">
+              </label>
+              <div class="auth-actions">
+                <button class="primary-button" type="submit">Apply Filter</button>
+              </div>
+            </form>
+            <div class="table-wrap table-wrap-tall">
+              <table class="data-table">
+                <thead><tr><th>Event</th><th>Actor</th><th>Time</th><th>Details</th></tr></thead>
+                <tbody id="activityTableBody"></tbody>
+              </table>
+            </div>
+          </article>
+
+          <div class="split-grid">
+            <article class="panel">
+              <div class="panel-heading"><h3>Recent Matches</h3></div>
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead><tr><th>Match</th><th>Players</th><th>Winner</th><th>Mode</th><th>Actions</th></tr></thead>
+                  <tbody id="matchesTableBody"></tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-heading"><h3>Market Offers</h3></div>
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead><tr><th>Seller</th><th>Card</th><th>Variant</th><th>Qty</th><th>Price</th><th>Actions</th></tr></thead>
+                  <tbody id="marketOffersTableBody"></tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+  <script src="/dashboard.js"></script>
+</body>
+</html>

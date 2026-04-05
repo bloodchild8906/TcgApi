@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TCG Engine Setup</title>
+  <meta name="description" content="First-run setup for TCG Engine API">
+  <link rel="stylesheet" href="/setup.css">
+</head>
+<body>
+  <div class="backdrop backdrop-a"></div>
+  <div class="backdrop backdrop-b"></div>
+  <div class="texture"></div>
+
+  <div class="layout">
+    <aside class="intro">
+      <p class="kicker">TCG Engine</p>
+      <h1>First-run installer</h1>
+      <p class="intro-copy">
+        Configure the gameplay and operations stores, generate a proper JWT secret, and create or recover the first admin account when bootstrap is incomplete.
+      </p>
+
+      <section class="status-card">
+        <div class="status-head">
+          <span class="eyebrow">Server state</span>
+          <span id="statusBadge" class="status-pill">Checking</span>
+        </div>
+        <p id="installerMessage" class="status-copy">Inspecting the current setup state.</p>
+        <dl class="status-list">
+          <div>
+            <dt>Env file</dt>
+            <dd id="envFileState">Unknown</dd>
+          </div>
+          <div>
+            <dt>JWT secret</dt>
+            <dd id="jwtState">Unknown</dd>
+          </div>
+          <div>
+            <dt>Setup reason</dt>
+            <dd id="setupReason">Unknown</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="note-card">
+        <span class="eyebrow">Supported drivers</span>
+        <ul id="supportedDrivers" class="driver-list"></ul>
+      </section>
+    </aside>
+
+    <main class="installer">
+      <header class="panel panel-hero">
+        <div>
+          <p class="eyebrow">Install</p>
+          <h2>Database and access configuration</h2>
+        </div>
+        <div class="hero-callout">
+          <p>Use full connection strings. SQL Server supports either `mssql://...` URLs or Windows-auth connection strings.</p>
+        </div>
+      </header>
+
+      <form id="setupForm" class="panel setup-form">
+        <section class="section-block">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">Step 1</span>
+              <h3>Core settings</h3>
+            </div>
+          </div>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>API title</span>
+              <input id="apiTitleInput" name="api_title" type="text" autocomplete="organization">
+            </label>
+
+            <label class="field field-secret">
+              <span>JWT secret</span>
+              <div class="field-inline">
+                <input id="jwtSecretInput" name="jwt_secret" type="text" autocomplete="off" spellcheck="false">
+                <button id="generateJwtSecretButton" class="ghost-button" type="button">Generate</button>
+              </div>
+            </label>
+          </div>
+        </section>
+
+        <section class="section-block">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">Step 2</span>
+              <h3>Gameplay store</h3>
+            </div>
+          </div>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>Driver</span>
+              <select id="gameDriverSelect" name="game_db_driver">
+                <option value="mongo">MongoDB</option>
+                <option value="mysql">MySQL</option>
+                <option value="postgres">Postgres</option>
+                <option value="mssql">SQL Server</option>
+              </select>
+            </label>
+
+            <label class="field field-wide">
+              <span>Connection string</span>
+              <textarea id="gameUrlInput" name="game_db_url" rows="4" spellcheck="false"></textarea>
+              <span id="gameDriverHint" class="helper-text"></span>
+            </label>
+          </div>
+        </section>
+
+        <section class="section-block">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">Step 3</span>
+              <h3>Operations store</h3>
+            </div>
+          </div>
+
+          <label class="toggle">
+            <input id="shareOpsCheckbox" name="use_same_operations_store" type="checkbox" checked>
+            <span>Use the same connection for trades, RBAC, and operator data</span>
+          </label>
+
+          <div id="opsFields" class="field-grid is-hidden">
+            <label class="field">
+              <span>Driver</span>
+              <select id="opsDriverSelect" name="ops_db_driver">
+                <option value="mongo">MongoDB</option>
+                <option value="mysql">MySQL</option>
+                <option value="postgres">Postgres</option>
+                <option value="mssql">SQL Server</option>
+              </select>
+            </label>
+
+            <label class="field field-wide">
+              <span>Connection string</span>
+              <textarea id="opsUrlInput" name="ops_db_url" rows="4" spellcheck="false"></textarea>
+              <span id="opsDriverHint" class="helper-text"></span>
+            </label>
+          </div>
+        </section>
+
+        <section class="section-block">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">Step 4</span>
+              <h3>Bootstrap admin</h3>
+            </div>
+            <p class="section-copy">Required when the instance has no users. On existing installs this section can stay empty.</p>
+          </div>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>Username</span>
+              <input id="adminUsernameInput" name="admin_username" type="text" autocomplete="username">
+            </label>
+
+            <label class="field">
+              <span>Email</span>
+              <input id="adminEmailInput" name="admin_email" type="email" autocomplete="email">
+            </label>
+
+            <label class="field">
+              <span>Password</span>
+              <input id="adminPasswordInput" name="admin_password" type="password" autocomplete="new-password">
+            </label>
+          </div>
+        </section>
+
+        <div class="action-row">
+          <button id="testConnectionButton" class="ghost-button" type="button">Test Connection</button>
+          <button id="applySetupButton" class="primary-button" type="submit">Apply Setup</button>
+        </div>
+
+        <p id="formMessage" class="form-message">The installer will validate the database connections before writing `.env`.</p>
+      </form>
+
+      <section class="panel results-panel">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Diagnostics</span>
+            <h3>Connection results</h3>
+          </div>
+        </div>
+        <div id="connectionResults" class="results-list">
+          <p class="empty-copy">No connection test has been run yet.</p>
+        </div>
+      </section>
+
+      <section class="panel help-panel">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Examples</span>
+            <h3>Driver-specific connection strings</h3>
+          </div>
+        </div>
+        <div id="exampleGrid" class="example-grid"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/setup.js"></script>
+</body>
+</html>
